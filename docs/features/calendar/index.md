@@ -3,9 +3,21 @@ sidebar_position: 2
 title: "Calendar"
 ---
 
-# 📅 Calendar
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
-**Schedule, track, and manage events — with AI that can plan for you.**
+# Calendar
+
+<ThemedImage
+  alt="Calendar: a month grid with color-coded events and a recurring weekday standup, with AI creating events from a natural-language request"
+  sources={{
+    light: useBaseUrl('/images/banners/calendar-light.svg'),
+    dark: useBaseUrl('/images/banners/calendar-dark.svg'),
+  }}
+  style={{ width: '100%', margin: '0.25rem 0 1.75rem' }}
+/>
+
+**Schedule, track, and manage events, with AI that can plan for you.**
 
 Calendar is a built-in scheduling feature that gives every user a personal calendar. Create events, set recurring schedules, share calendars with teammates, and let AI models autonomously create and manage events through natural conversation.
 
@@ -19,21 +31,23 @@ Calendar is enabled by default but can be disabled by an administrator via the [
 
 ## Why Calendar?
 
+Calendar gives models a way to interact with time. Once it is enabled, you can ask a model to remind you about something, schedule a recurring task, or check what is coming up this week, and it just works.
+
 ### AI-powered scheduling
 
-With [native function calling](/features/extensibility/plugin/tools#tool-calling-modes-default-vs-native) enabled, models can search, create, update, and delete calendar events through natural language. Say *"Schedule a standup every weekday at 9am"* and the model handles it.
+With [native function calling](/features/extensibility/plugin/tools#tool-calling-modes-default-vs-native) enabled, models can search, create, update, and delete calendar events through natural language. Say *"Remind me to follow up with the design team at 3pm on Friday"* and the model creates an event with an alert. When the time arrives, you get a toast notification, a browser notification, and (optionally) a webhook, with no manual event creation on your part.
 
 ### Automation integration
 
-Active automations with RRULE schedules appear as virtual events on your **Scheduled Tasks** calendar. Past automation runs are shown as completed events with links to the generated chats.
+Active [Automations](/features/chat-conversations/chat-features/automations) appear as virtual events on a dedicated **Scheduled Tasks** calendar. Upcoming runs show when the next execution is scheduled, and past runs link directly to the chat they produced, giving you a unified timeline of both your events and your automated workflows.
 
 ### Shared calendars
 
-Share calendars with specific users or groups via access grants. Team members see shared events alongside their own.
+Share calendars with specific users or groups via access grants. Team members see shared events alongside their own, with RSVP tracking (pending, accepted, declined, tentative) built in.
 
 ### Multi-calendar organization
 
-Organize events across multiple calendars (e.g., "Personal", "Team Meetings") with color coding. Each user gets **Personal** and **Scheduled Tasks** calendars created automatically on first access.
+Organize events across multiple calendars (e.g., "Personal", "Team Meetings", "On-Call") with color coding. Each user gets **Personal** and **Scheduled Tasks** calendars created automatically on first access.
 
 ---
 
@@ -82,23 +96,30 @@ Open **User Menu > Calendar** from the sidebar. On first visit, two default cale
 Hold **Shift** in the User Menu to reveal pin/unpin buttons. Pinning Calendar adds a shortcut icon to the sidebar rail for one-click access.
 :::
 
-- **Personal** — your default calendar for manual events (blue, auto-created on first visit)
-- **Scheduled Tasks** — virtual read-only overlay of automation schedules and runs (purple, only visible when the user has [Automations](/features/chat-conversations/chat-features/automations) access)
+- **Personal**: your default calendar for manual events (blue, auto-created on first visit)
+- **Scheduled Tasks**: virtual read-only overlay of automation schedules and runs (purple, only visible when the user has [Automations](/features/chat-conversations/chat-features/automations) access)
+
+### Create a Calendar
+
+Click the small **+** button next to the **Calendars** heading in the calendar sidebar to open the **New Calendar** modal. Enter a name and pick a color from the preset palette (blue, red, green, amber, violet, pink, cyan, orange) and click **Create**. The new calendar appears in the sidebar immediately and shows up in the calendar picker when creating or editing events. Each calendar belongs to its creator and can be shared via [Sharing Calendars](#sharing-calendars).
 
 ### Create an Event
 
 1. Click **New Event** (sidebar or top bar) or click any day/hour cell on the calendar grid
 2. Fill in the event details:
    - **Title** (required)
-   - **Calendar** — which calendar to add the event to
-   - **When** — date and time, or toggle **All day**
+   - **Calendar**: which calendar to add the event to
+   - **When**: date and time, or toggle **All day**
    - **Location** (optional)
+   - **Repeat**: how often the event comes back, see [Recurring Events](#recurring-events)
    - **Description** (optional)
 3. Click **Create**
 
+**New Event** opens the form on today's date, starting at the current time and ending an hour later. Both come from your own clock, so opening the form late in the evening or early in the morning still gives you today rather than tomorrow or yesterday. Opening the form by clicking the grid prefills that slot instead: the hour you clicked in week and day view, 09:00 in month view.
+
 ### Edit or Delete an Event
 
-Click any event on the calendar to open the event editor. From there you can update details or delete the event. Automation-generated virtual events cannot be edited directly — clicking them navigates to the automation or the run's chat.
+Click any event on the calendar to open the event editor. From there you can update details or delete the event. Automation-generated virtual events cannot be edited directly; clicking them navigates to the automation or the run's chat.
 
 ---
 
@@ -116,13 +137,31 @@ Use the **arrow buttons** to navigate forward/backward, or click **Today** to ju
 
 ---
 
+## Recurring Events
+
+Set **Repeat** in the event form to make an event come back: **No Repeat** (the default), **Daily**, **Monday – Friday**, **Weekly**, **Monthly** or **Yearly**. Occurrences are counted from the event's own start, so a weekly event lands on the weekday it starts on and a monthly one on the same day of the month.
+
+Every occurrence sits at the clock time you set, read in your time zone rather than the server's. A 09:00 standup shows at 09:00 whether the server runs on UTC or anywhere else, and it stays at 09:00 after the clocks go forward or back for daylight saving.
+
+Your time zone comes from your browser and is stored on your account, so there is nothing to configure. When an account carries no usable time zone, its recurring events fall back to the server's time zone.
+
+### Daily is as often as an event can repeat
+
+From v0.11.2, an event cannot repeat more often than once a day. Saving a rule that comes back every hour, or every fifteen minutes, is refused with **Recurring events cannot repeat more often than daily**. This is checked on the server, so it applies to events created through the API and by a model, as well as ones created in the interface.
+
+Anything faster than daily is a job rather than an appointment, and it belongs in [Automations](/features/chat-conversations/chat-features/automations), which are built to run on that kind of schedule.
+
+Sub-daily events saved before the limit existed keep running as they are. They cannot be saved again until their repeat rule is changed, so editing anything else about such an event means fixing the rule at the same time.
+
+---
+
 ## Automation Integration
 
-The **Scheduled Tasks** calendar bridges the gap between automations and the calendar view. It is a **virtual calendar** — not stored in the database — that is synthesized at API response time whenever the user has access to the Automations feature.
+The **Scheduled Tasks** calendar bridges the gap between automations and the calendar view. It is a **virtual calendar**, not stored in the database, that is synthesized at API response time whenever the user has access to the Automations feature.
 
 ### Future runs
 
-For each active automation with an RRULE schedule, the calendar computes upcoming occurrences and renders them as virtual events in the requested date range.
+For each active automation with an RRULE schedule, the calendar computes upcoming occurrences and renders them as virtual events in the requested date range, in your own time zone.
 
 ### Past runs
 
@@ -189,6 +228,10 @@ Calendars support the same access grant system used by knowledge bases, models, 
 
 Only the calendar **owner** (or an admin) can manage access grants and delete the calendar itself.
 
+:::info Public sharing is permission-gated
+Wildcard access grants (calendar readable or writable by every user with the Calendar feature) are gated by the **Calendars Public Sharing** permission. When disabled for a non-admin owner, public principals are silently stripped from the access grant list on calendar create/update; per-user and per-group grants remain unaffected. Admins always retain the ability to share publicly. Configurable per-group in **Admin Panel > Users > Groups > Permissions** or via [`USER_PERMISSIONS_CALENDAR_ALLOW_PUBLIC_SHARING`](/reference/env-configuration#user_permissions_calendar_allow_public_sharing).
+:::
+
 ---
 
 ## Attendees and RSVP
@@ -221,11 +264,11 @@ The default is **10 minutes before**.
 
 ### How alerts are delivered
 
-1. **Toast notification** — appears in the Open WebUI UI with the event title and time remaining. Clicking the toast navigates to the Calendar.
-2. **Browser notification** — if browser notifications are enabled in user settings, a native OS notification is shown.
-3. **Webhook** — if the user has a webhook URL configured in **Settings > Notifications**, a `calendar_alert` payload is sent.
+1. **Toast notification**: appears in the Open WebUI UI with the event title and time remaining. Clicking the toast navigates to the Calendar.
+2. **Browser notification**: if browser notifications are enabled in user settings, a native OS notification is shown.
+3. **Webhook**: if the user has a webhook URL configured in **Settings > Notifications**, a `calendar_alert` payload is sent.
 
-Alerts are de-duplicated server-side via `meta.alerted_at`, so each event fires at most once per start time — even across restarts and multi-instance deployments.
+Alerts are de-duplicated server-side via `meta.alerted_at`, so each event fires at most once per start time, even across restarts and multi-instance deployments.
 
 The global alert polling window is configurable via [`CALENDAR_ALERT_LOOKAHEAD_MINUTES`](/reference/env-configuration#calendar_alert_lookahead_minutes) (default: 10 minutes).
 
@@ -237,10 +280,11 @@ The global alert polling window is configurable via [`CALENDAR_ALERT_LOOKAHEAD_M
 |----------|---------|-------------|
 | [`ENABLE_CALENDAR`](/reference/env-configuration#enable_calendar) | `True` | Enable or disable the Calendar feature globally |
 | [`USER_PERMISSIONS_FEATURES_CALENDAR`](/reference/env-configuration#user_permissions_features_calendar) | `True` | Enable or disable Calendar access for non-admin users by default |
+| [`USER_PERMISSIONS_CALENDAR_ALLOW_PUBLIC_SHARING`](/reference/env-configuration#user_permissions_calendar_allow_public_sharing) | `False` | Allow non-admin owners to attach wildcard read/write access grants to a calendar |
 | [`SCHEDULER_POLL_INTERVAL`](/reference/env-configuration#scheduler_poll_interval) | `10` | Seconds between scheduler ticks (shared with automations) |
 | [`CALENDAR_ALERT_LOOKAHEAD_MINUTES`](/reference/env-configuration#calendar_alert_lookahead_minutes) | `10` | Default alert window in minutes for upcoming events |
 
-Calendar can also be toggled from **Admin Panel > Settings > General** under the Features section.
+Calendar can also be toggled from **Settings > Admin > General** under the Features section.
 
 ---
 

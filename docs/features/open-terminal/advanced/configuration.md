@@ -21,20 +21,31 @@ Settings are applied in this order (later ones override earlier ones):
 
 | Setting | Default | Environment Variable | Description |
 | :--- | :--- | :--- | :--- |
-| **Host** | `0.0.0.0` | — | Network address to listen on |
-| **Port** | `8000` | — | Port number |
+| **Host** | `0.0.0.0` | None | Network address to listen on |
+| **Port** | `8000` | None | Port number |
 | **API Key** | Auto-generated | `OPEN_TERMINAL_API_KEY` | Password for connecting |
-| **API Key File** | — | `OPEN_TERMINAL_API_KEY_FILE` | Load the key from a file (for Docker secrets) |
+| **API Key File** | None | `OPEN_TERMINAL_API_KEY_FILE` | Load the key from a file (for Docker secrets) |
 | **Log Directory** | `~/.local/state/open-terminal/logs` | `OPEN_TERMINAL_LOG_DIR` | Where to save log files |
 | **Max Sessions** | `16` | `OPEN_TERMINAL_MAX_SESSIONS` | Maximum concurrent terminal sessions |
 | **Enable Terminal** | `true` | `OPEN_TERMINAL_ENABLE_TERMINAL` | Turn the interactive terminal on/off |
 | **Enable Notebooks** | `true` | `OPEN_TERMINAL_ENABLE_NOTEBOOKS` | Turn Jupyter notebook execution on/off |
 | **TERM** | `xterm-256color` | `OPEN_TERMINAL_TERM` | Terminal color support |
 | **Execute Timeout** | Unset | `OPEN_TERMINAL_EXECUTE_TIMEOUT` | How long (seconds) to wait for command output |
-| **Execute Description** | — | `OPEN_TERMINAL_EXECUTE_DESCRIPTION` | Custom text telling the AI about installed tools |
-| **Multi-User** | `false` | `OPEN_TERMINAL_MULTI_USER` | Enable [per-user isolation](./multi-user) |
-| **CORS Origins** | — | `OPEN_TERMINAL_CORS_ALLOWED_ORIGINS` | Allowed cross-origin domains |
-| **Allowed Domains** | — | `OPEN_TERMINAL_ALLOWED_DOMAINS` | [Egress firewall](./security#egress-filtering): only allow outbound connections to these domains |
+| **Execute Description** | None | `OPEN_TERMINAL_EXECUTE_DESCRIPTION` | Custom text telling the AI about installed tools |
+| **Enable System Prompt** | `true` | `OPEN_TERMINAL_ENABLE_SYSTEM_PROMPT` | Expose the `/system` prompt endpoint |
+| **System Prompt** | Generated | `OPEN_TERMINAL_SYSTEM_PROMPT` | Replace the generated prompt with a custom template |
+| **Environment Info** | None | `OPEN_TERMINAL_INFO` | Append operator-provided environment context to the generated prompt |
+| **File Browser Root** | `home` | `OPEN_TERMINAL_FILE_BROWSER_ROOT` | Use `home`, an explicit path such as `/workspace`, or `filesystem` to opt out |
+| **Multi-User** | `false` | `OPEN_TERMINAL_MULTI_USER` | Enable [per-user isolation](./multi-user.md) |
+| **CORS Origins** | `*` | `OPEN_TERMINAL_CORS_ALLOWED_ORIGINS` | Allowed cross-origin domains. The default `*` allows all origins (permissive); a startup warning is printed when it is left unset (since ~0.11.30) |
+| **Allowed Domains** | None | `OPEN_TERMINAL_ALLOWED_DOMAINS` | [Egress firewall](./security.md#egress-filtering): only allow outbound connections to these domains |
+| **Session CWD TTL** | `604800` (7 days) | `OPEN_TERMINAL_SESSION_CWD_TTL` | How long a session's saved working directory is remembered |
+| **Max Log Size** | `50000000` (50 MB) | `OPEN_TERMINAL_MAX_LOG_SIZE` | Max size of a session log before rotation |
+| **Log Retention** | `604800` (7 days) | `OPEN_TERMINAL_LOG_RETENTION` | How long session logs are kept |
+| **Log Flush Interval** | `0` | `OPEN_TERMINAL_LOG_FLUSH_INTERVAL` | Seconds between log flushes (0 = flush immediately); raise it to batch writes on slow storage (ARM/eMMC) |
+| **Log Flush Buffer** | `0` | `OPEN_TERMINAL_LOG_FLUSH_BUFFER` | Bytes buffered before a forced flush (pairs with the interval) |
+| **Binary MIME Prefixes** | `image` | `OPEN_TERMINAL_BINARY_MIME_PREFIXES` | MIME prefixes treated as binary in the file browser |
+| **User Prefix** | Empty | `OPEN_TERMINAL_USER_PREFIX` | Prefix added to provisioned multi-user account names |
 
 ---
 
@@ -46,9 +57,14 @@ These only work with the Docker image:
 | :--- | :--- | :--- |
 | **System Packages** | `OPEN_TERMINAL_PACKAGES` | Space-separated list of system packages to install at startup |
 | **Python Packages** | `OPEN_TERMINAL_PIP_PACKAGES` | Space-separated list of Python packages to install at startup |
+| **npm Packages** | `OPEN_TERMINAL_NPM_PACKAGES` | Space-separated list of npm packages to install at startup |
 
 :::note
 These packages are reinstalled every time the container starts. If you need many packages, consider [building a custom image](https://github.com/open-webui/open-terminal) instead.
+:::
+
+:::note OpenShift image
+The `ghcr.io/open-webui/open-terminal:openshift` image does not support runtime package installation, `OPEN_TERMINAL_ALLOWED_DOMAINS`, Docker socket workflows, or `OPEN_TERMINAL_MULTI_USER=true`. Install required tools in a custom image before deploying to OpenShift.
 :::
 
 ---
@@ -69,7 +85,7 @@ execute_timeout = 5
 execute_description = "This terminal has ffmpeg and ImageMagick installed."
 ```
 
-{/* TODO: Screenshot — A text editor showing a well-formatted config.toml file. */}
+{/* TODO: Screenshot: A text editor showing a well-formatted config.toml file. */}
 
 :::tip Why use a config file?
 It keeps your API key out of the command line and shell history. Anyone running `ps` or `htop` on the machine won't see it.
@@ -80,6 +96,23 @@ To use a config file in a custom location:
 ```bash
 open-terminal run --config /path/to/my-config.toml
 ```
+
+### System prompt placeholders
+
+When `OPEN_TERMINAL_SYSTEM_PROMPT` is set, Open Terminal expands these placeholders:
+
+| Placeholder | Value |
+| :--- | :--- |
+| `{{os}}` | Operating system name |
+| `{{kernel}}` | Kernel or OS release |
+| `{{arch}}` | Machine architecture |
+| `{{hostname}}` | Hostname |
+| `{{user}}` | Runtime user when available |
+| `{{shell}}` | Shell path |
+| `{{python_version}}` | Python version |
+| `{{home}}` | Runtime home directory |
+
+Unknown placeholders are left unchanged.
 
 ---
 
@@ -101,7 +134,7 @@ secrets:
     file: ./terminal_api_key.txt
 ```
 
-{/* TODO: Screenshot — Docker Compose file in an editor with the secrets section highlighted. */}
+{/* TODO: Screenshot: Docker Compose file in an editor with the secrets section highlighted. */}
 
 ---
 
@@ -119,9 +152,9 @@ Open Terminal comes in three sizes:
 
 **If you're not sure, use `latest`.** It has everything pre-installed so the AI can work with any tool without waiting for installs.
 
-{/* TODO: Screenshot — A visual comparison of the three image variants showing relative sizes and capabilities. */}
+{/* TODO: Screenshot: A visual comparison of the three image variants showing relative sizes and capabilities. */}
 
 ## Related
 
-- [Security best practices →](./security)
-- [Multi-user setup →](./multi-user)
+- [Security best practices →](./security.md)
+- [Multi-user setup →](./multi-user.md)

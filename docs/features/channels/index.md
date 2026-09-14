@@ -3,7 +3,19 @@ sidebar_position: 1000
 title: "Channels"
 ---
 
-# 💬 Channels
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+# Channels
+
+<ThemedImage
+  alt="Channels: a shared #product-launch channel where people and AI models talk in one timeline, summoned with @model mentions"
+  sources={{
+    light: useBaseUrl('/images/banners/channels-light.svg'),
+    dark: useBaseUrl('/images/banners/channels-dark.svg'),
+  }}
+  style={{ width: '100%', margin: '0.25rem 0 1.75rem' }}
+/>
 
 **Where your team and AI think together, in real time.**
 
@@ -17,7 +29,7 @@ Open WebUI is where knowledge is found, created, and shared. Channels make that 
 
 ### AI as a participant, not a separate tool
 
-Tag `@gpt-4o` to draft a plan, then tag `@claude` to critique it. Your whole team sees both responses in the same timeline with full context. No tab-switching, no copy-pasting between tools.
+Tag `@gpt-5.6` to draft a plan, then tag `@claude` to critique it. Your whole team sees both responses in the same timeline with full context. No tab-switching, no copy-pasting between tools.
 
 ### Persistent shared context
 
@@ -52,7 +64,7 @@ Instant updates, emoji reactions, threaded replies, pinned messages, and unread 
 |------|----------|
 | **Standard** | Topic-based rooms (`#engineering`, `#marketing-strategy`), public or private |
 | **Group** | Team-scoped spaces with explicit membership and user-group sync |
-| **Direct Message** | Private 1:1 or small-group conversations with online/offline status |
+| **[Direct Message](#direct-messages)** | Private 1:1 or small-group conversations with online/offline status |
 
 ---
 
@@ -62,21 +74,51 @@ Instant updates, emoji reactions, threaded replies, pinned messages, and unread 
 
 Channels are **passive by default**. AI doesn't jump into every conversation. When you need input from a model, just tag it:
 
-> **You:** `@gpt-4o` Here's our Q3 revenue data. What trends stand out?
+> **You:** `@gpt-5.6` Here's our Q3 revenue data. What trends stand out?
 >
-> *(GPT-4o analyzes the data and responds with key insights)*
+> *(GPT-5.6 analyzes the data and responds with key insights)*
 >
 > **You:** `@claude` Do you agree with that analysis? What's missing?
 
 This means your team can discuss freely without AI interrupting, and call on exactly the right model when it's needed.
 
+#### Where the reply appears
+
+By default a model answering a top-level mention replies **in a thread** under your message, so a long answer does not push the channel's conversation off the screen. An administrator can change this in **Settings > Admin > General** (**Model Response Mode**, or [`CHANNEL_MODEL_RESPONSE_MODE`](/reference/env-configuration#channel_model_response_mode)): set it to **Channel** and the reply is posted into the timeline instead, where the team reads it without opening a thread. Mentioning a model from inside a thread always answers in that thread either way.
+
+### Full chat-completion pipeline
+
+Mentioning a model in a channel runs through the same chat-completion pipeline as a standard chat. The reply is **streamed in real time** as the model generates it, and the model has access to the full set of capabilities its configuration grants:
+
+| Capability | What it enables in a channel |
+|------------|------------------------------|
+| **Native and default function calling** | Tool calls resolve and execute mid-message |
+| **Built-in tools** | Web search, image generation, code interpreter, calendar |
+| **User tools and MCP tools** | Whatever the model is configured to call, it can call |
+| **Filters** | Inlet/outlet/stream filters apply just like in chats |
+| **Knowledge (RAG)** | Knowledge bases attached to the model are queried and injected |
+| **Attached documents** | Images **and** non-image files (PDF, DOCX, etc.) uploaded in the thread are forwarded into the model's context |
+| **Structured replies** | The reply is rendered from the model's full output, so reasoning blocks, tool calls, generated images and code results appear in the channel as they do in a chat, rather than being flattened to plain text |
+
+In other words, a channel-summoned model is a fully-equipped agent, not a one-shot completion.
+
+:::note Document attachments in channels (v0.9.6+)
+Before v0.9.6, tagging a model in a channel only forwarded **images** from the thread. Uploaded PDFs, DOCX, and other non-image documents were ignored, so summarization and document-comparison prompts silently had nothing to work with. As of v0.9.6 these files are forwarded the same way they are in a direct chat, so document workflows behave identically in channels.
+:::
+
 ### Tagging people and linking channels
 
-Use `@username` to notify teammates. Use `#channel-name` to create clickable cross-references between conversations.
+Use `@username` to notify teammates. The suggestion list puts the channel's own members first, then anyone else on the instance whose name matches what you typed, so you can still tag someone who is not in the channel. Use `#channel-name` to create clickable cross-references between conversations.
 
 ### Message interactions
 
 Hover any message to react with emoji, pin it for reference, reply inline, or start a threaded side conversation.
+
+### Direct messages
+
+A direct message is a conversation between you and the people you pick, and there is one of them per set of participants. Start one from the **Message** button on someone's profile card in a channel, or from **(+)** in the sidebar's **Channels** section with **Channel Type** set to **Direct Message**. Messaging someone you have messaged before reopens the conversation you already have with them, with its history, instead of adding a second one beside it. A name is optional on a direct message; without one it is listed under the names of the other participants.
+
+Membership is measured against the accounts that still exist. When someone's account is deleted, they stop counting towards the conversation: they are gone from the member list and from the member count next to the people icon in the header, and the participants who remain still land back in that same conversation when they message each other again. Group channels count their members the same way. Nothing merges two conversations that already exist for the same set of people, so where a duplicate was created it stays in the sidebar alongside the original, with the messages that were sent in it.
 
 ---
 
@@ -102,15 +144,15 @@ If you want a one-click path from a chat message into a channel, the community *
 
 ## Getting Started
 
-:::info Beta Feature
-Channels is currently in **Beta** and must be enabled by an administrator.
+:::info
+Channels must be enabled by an administrator before use.
 :::
 
-1. Navigate to **Admin Panel > Settings > General**
-2. Toggle **Channels (Beta)** on and save
+1. Navigate to **Settings > Admin > General**
+2. Toggle **Channels** on and save
 3. Channels appear in the sidebar. Click **(+)** to create your first one
 
-Channel creation is restricted to administrators by default. Channels support granular permissions including read-only access, write access, and feature-level toggles via environment variables or group permissions.
+Creating a standard channel is restricted to administrators. Someone with the **Channels** permission ([`USER_PERMISSIONS_FEATURES_CHANNELS`](/reference/env-configuration#user_permissions_features_channels)) can create group channels and direct messages. Channels support granular permissions including read-only access, write access, and feature-level toggles via environment variables or group permissions.
 
 ---
 
@@ -122,11 +164,11 @@ Your team discusses architecture decisions throughout the week. Someone tags `@c
 
 ### Multi-model war room (`#incident-response`)
 
-Paste logs and error traces. Tag `@gpt-4o` to analyze the stack trace. Tag `@deepseek-coder` to suggest a fix. Tag `@claude` to draft the postmortem. Three models, one shared context, one timeline.
+Paste logs and error traces. Tag `@gpt-5.6` to analyze the stack trace. Tag `@qwen3.6` to suggest a fix. Tag `@claude` to draft the postmortem. Three models, one shared context, one timeline.
 
 ### Project strategy (`#product-launch`)
 
-Twenty messages of human brainstorming. Then: `@gpt-4o` Read the conversation above and create a prioritized action plan with owners and deadlines. The AI synthesizes everything discussed into a structured deliverable.
+Twenty messages of human brainstorming. Then: `@gpt-5.6` Read the conversation above and create a prioritized action plan with owners and deadlines. The AI synthesizes everything discussed into a structured deliverable.
 
 ### Creative collaboration (`#story-mode`)
 

@@ -8,7 +8,7 @@ title: "Analytics"
 The **Analytics** feature in Open WebUI provides administrators with comprehensive insights into usage patterns, token consumption, and model performance across their instance. This powerful tool helps you understand how your users are interacting with AI models and make data-driven decisions about resource allocation and model selection.
 
 :::info Admin-Only Feature
-Analytics is only accessible to users with **admin** role. Access it via **Admin Panel > Analytics**.
+Analytics is only accessible to users with **admin** role. Access it via **Settings > Admin > Analytics**.
 :::
 
 :::tip Disabling Analytics
@@ -33,10 +33,28 @@ All analytics data is derived from the message history stored in your instance's
 ## Accessing Analytics
 
 1. Log in with an **admin** account
-2. Navigate to **Admin Panel** (click your profile icon → Admin Panel)
-3. Click on the **Analytics** tab in the admin navigation
+2. Click your profile icon and open **Settings**
+3. Open the **Admin** section and select **Analytics**, listed under **Quality**
+
+![The analytics dashboard](/images/admin/admin-analytics.png)
+
+The dashboard is no longer a separate page. It opens in the settings window next to your personal settings, and the old `/admin/analytics` URL redirects there. If [`ENABLE_ADMIN_ANALYTICS`](/reference/env-configuration#enable_admin_analytics) is off, that URL redirects to the Admin Panel user list instead and the Analytics entry is not listed.
 
 ---
+
+## Personal Usage
+
+The dashboard described here is the instance-wide admin view. Separately, **every user has a personal usage view of their own activity** at **Settings > Usage**. It requires no admin role and no configuration.
+
+It is scoped strictly to the signed-in user's own data:
+
+- Token totals (input and output), both lifetime and for the period covered
+- Message and chat counts, and the number of days they were active
+- An activity heatmap, viewable by day, by week, or as a cumulative total
+- Current and longest activity streaks
+- Their most-used models and tools
+
+The period covered is the past two years (the last 730 days), the same window for every account regardless of when it was created, and the data is bucketed in the user's own timezone. Because it only ever reports the requesting user's own activity, it exposes nothing about anyone else's.
 
 ## Dashboard Features
 
@@ -49,8 +67,11 @@ At the top right of the Analytics dashboard, you can filter all data by time per
 - **Last 30 days** - Monthly snapshot
 - **Last 90 days** - Quarterly trends
 - **All time** - Complete historical data
+- **Custom range** - A start and an end date you choose
 
-Your selected time period is **automatically saved** and persists across browser sessions.
+Choosing **Custom range** puts two date fields next to the period dropdown. Nothing is queried until both are filled in, so while you are still picking, the dashboard sits idle instead of showing a spinner, and it loads as soon as the second date is set. The end date is inclusive, so it covers the whole of that day.
+
+Your selected time period is **automatically saved** and persists across browser sessions, the custom dates included. If you leave Analytics on **Custom range** with the dates incomplete and come back to it later, the dashboard shows empty figures until you fill the range in, rather than loading indefinitely.
 
 ### Group Filtering
 
@@ -195,6 +216,12 @@ Open WebUI automatically captures token usage from model responses and stores it
 
 Token data is normalized across different model providers (OpenAI, Ollama, llama.cpp, etc.) to provide consistent metrics regardless of which backend you're using.
 
+The figures are the ones the provider reports, and most OpenAI-compatible providers report nothing on a streamed reply unless they are asked. Asking is what the **Usage** capability in **Workspace > Models > Edit** does, so a model without it can show no tokens at all. See [Capabilities and bindings](/features/workspace/models#capabilities-and-bindings).
+
+:::info Scheduled and delegated runs are counted too
+The request for token counts is added server-side, so a model with **Usage** enabled reports its tokens in every chat it runs, including the ones Open WebUI starts on a user's behalf through [automations](/features/chat-conversations/chat-features/automations), [timers](/features/chat-conversations/chat-features/timers), [sub-agents](/features/chat-conversations/chat-features/subagents) and [channels](/features/channels). Those runs are part of the same totals as the chats people type in.
+:::
+
 ### Token Usage Metrics
 
 The **Token Usage** section (accessible via the Tokens endpoint or dashboard) provides:
@@ -209,7 +236,7 @@ To estimate costs, multiply the token counts by your provider's pricing:
 Cost = (input_tokens × input_price) + (output_tokens × output_price)
 ```
 
-Example for GPT-4:
+Example for GPT-5.6:
 - Input: 1,000,000 tokens × $0.03/1K = $30
 - Output: 500,000 tokens × $0.06/1K = $30
 - **Total: $60**
@@ -321,6 +348,12 @@ GET /api/v1/analytics/tokens
 GET /api/v1/analytics/models/{model_id}/chats    # Get chats using this model
 GET /api/v1/analytics/models/{model_id}/overview # Get feedback history and tags
 ```
+
+**Personal Usage Endpoint** (any signed-in user, returns only their own data):
+```
+GET /api/v1/users/usage
+```
+Accepts either `days` (7-732) or an explicit `start_date` / `end_date` range, and buckets results in the requesting user's timezone. Called with none of them, as the **Settings > Usage** page does, it returns the last 730 days ending now. This one is not admin-gated, because it reports nothing beyond the caller's own activity.
 
 **Common Query Parameters:**
 

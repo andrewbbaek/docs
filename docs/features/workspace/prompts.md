@@ -3,7 +3,19 @@ sidebar_position: 3
 title: "Prompts"
 ---
 
-# 📝 Prompts
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+# Prompts
+
+<ThemedImage
+  alt="Workspace map with the Prompts cell highlighted: Models, Knowledge, Prompts, Skills and Tools around the Open WebUI core"
+  sources={{
+    light: useBaseUrl('/images/banners/workspace-prompts-light.svg'),
+    dark: useBaseUrl('/images/banners/workspace-prompts-dark.svg'),
+  }}
+  style={{ width: '100%', margin: '0.25rem 0 1.75rem' }}
+/>
 
 **Reusable slash commands that turn complex instructions into one-click forms.**
 
@@ -14,6 +26,8 @@ Every change is tracked with full version history. Roll back to a previous versi
 ---
 
 ## Why Prompts?
+
+![Saved prompts in the workspace](/images/workspace/prompts-list.png)
 
 ### Stop retyping the same instructions
 
@@ -49,7 +63,7 @@ Share prompts with specific users or groups. Public prompts appear in everyone's
 
 ## Creating a Prompt
 
-Navigate to **Workspace > Prompts** and click **+ New Prompt**.
+Navigate to **Workspace > Prompts** and click **Create** in the Workspace header.
 
 | Field | Description |
 | :--- | :--- |
@@ -86,10 +100,19 @@ Automatically replaced with their value at runtime:
 | `{{USER_AGE}}` | Age calculated from birth date (unreplaced if not set) |
 | `{{USER_LANGUAGE}}` | Your selected language |
 | `{{USER_LOCATION}}` | Your location (requires HTTPS + Settings > Interface toggle) |
+| `{{USER_GROUPS}}` | Comma-separated list of the groups the user belongs to (empty if none). Resolved from the database only when the placeholder is present. |
 
 ### Custom input variables
 
 Add variables to your prompt content and users get a popup form when they use the slash command.
+
+:::info This syntax only works in prompt content
+
+The syntax on this page applies to the content of a saved prompt. Putting `{{name | text:required}}` into a model's system prompt does nothing: it declares no field, opens no form, and reaches the model as literal text.
+
+System prompts use [chat variables](/features/chat-conversations/chat-features/chat-params#chat-variables) instead, which are the same field types written with a `chat.variables.` prefix, so the example above becomes `{{chat.variables.name | text:required}}`.
+
+:::
 
 **Simple input** creates a single-line text field:
 ```
@@ -261,6 +284,8 @@ Sends only the last 2 messages, each capped at 500 characters.
 ### Slash command namespace
 
 Public prompts appear in every user's `/` suggestions. Too many public prompts clutter the menu. Use the enable/disable toggle to keep inactive prompts out of suggestions.
+
+The names of the [built-in slash commands](/features/chat-conversations/chat-features/) are effectively reserved: `compact`, `status`, `fork` and `model`. A prompt with one of those commands still shows in the menu and still works when picked from it, but a user who types it out and sends it gets the built-in command instead of the prompt. Pick a different command name.
 
 ### Optional by default
 

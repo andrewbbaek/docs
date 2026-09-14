@@ -3,7 +3,7 @@ sidebar_position: 2
 title: "Action Function"
 ---
 
-# 🎬 Action Function: Custom Interactive Buttons
+# Action Function: Custom Interactive Buttons
 
 :::danger ⚠️ Critical Security Warning
 **Action Functions execute arbitrary Python code on your server.** Function creation is restricted to administrators only. Only install from trusted sources and review code before importing. A malicious Function could access your file system, exfiltrate data, or compromise your entire system. For full details, see the [Plugin Security Warning](/features/extensibility/plugin/).
@@ -50,20 +50,24 @@ class Action:
 
     async def action(self, body: dict, __user__=None, __event_emitter__=None, __event_call__=None):
         # Action implementation
-        return {"content": "Modified message content"}
+        return {"messages": [{"id": body["id"], "content": "Modified message content"}]}
 ```
 
 ### Action Method Parameters
 
 The `action` method receives several parameters that provide access to the execution context:
 
-- **`body`** - Dictionary containing the message data and context
-- **`__user__`** - Current user object with permissions and settings
-- **`__event_emitter__`** - Function to send real-time updates to the frontend
-- **`__event_call__`** - Function for bidirectional communication (confirmations, inputs)
-- **`__model__`** - Model information that triggered the action
-- **`__request__`** - FastAPI request object for accessing headers, etc.
-- **`__id__`** - Action ID (useful for multi-action functions)
+- **`body`**: The request the chat sent, with `messages` (the conversation so far, each entry carrying `id`, `role`, `content`, `timestamp`), `model`, `chat_id`, `session_id` and `id`, which is the id of the message the button was pressed on
+- **`__user__`**: Current user object with permissions and settings
+- **`__event_emitter__`**: Function to send real-time updates to the frontend
+- **`__event_call__`**: Function for bidirectional communication (confirmations, inputs)
+- **`__model__`**: Model information that triggered the action
+- **`__request__`**: FastAPI request object for accessing headers, etc.
+- **`__id__`**: Action ID (useful for multi-action functions)
+
+### Return Value
+
+To change what the chat shows, return `{"messages": [...]}`, where each entry carries the `id` of an existing message plus the fields to overwrite on it. Anything else is returned to the caller and dropped, so a bare `{"content": "..."}` silently does nothing. The one exception is an `HTMLResponse` with `Content-Disposition: inline`, which becomes a [Rich UI embed](/features/extensibility/plugin/development/rich-ui). Returning nothing at all is fine for actions whose only job is a side effect or an event emitter update.
 
 ## Event System Integration
 
@@ -115,6 +119,8 @@ async def action(self, body: dict, __event_call__=None):
     })
 ```
 
+When the browser cannot answer, `__event_call__` returns a `dict` with an `error` key rather than raising: the tab has already disconnected, or [`WEBSOCKET_EVENT_CALLER_TIMEOUT`](/reference/env-configuration#websocket_event_caller_timeout) is set and nobody responded in time. Check for that key before using the result. See [Events → Interactive Events](/features/extensibility/plugin/development/events#interactive-events).
+
 ## Action Types and Configurations
 
 ### Single Actions
@@ -123,7 +129,7 @@ Standard actions with one `action` method:
 ```python
 async def action(self, body: dict, **kwargs):
     # Single action implementation
-    return {"content": "Action result"}
+    return {"messages": [{"id": body["id"], "content": "Action result"}]}
 ```
 
 ### Multi-Actions
@@ -146,19 +152,19 @@ actions = [
 async def action(self, body: dict, __id__=None, **kwargs):
     if __id__ == "summarize":
         # Summarization logic
-        return {"content": "Summary: ..."}
+        return {"messages": [{"id": body["id"], "content": "Summary: ..."}]}
     elif __id__ == "translate":
         # Translation logic
-        return {"content": "Translation: ..."}
+        return {"messages": [{"id": body["id"], "content": "Translation: ..."}]}
 ```
 
 ### Global vs Model-Specific Actions
-- **Global Actions** - Turn on the toggle in the Action's settings, to globally enable it for all users and all models.
-- **Model-Specific Actions** - Configure enabled actions for specific models in the model settings.
+- **Global Actions**: Turn on the toggle in the Action's settings, to globally enable it for all users and all models.
+- **Model-Specific Actions**: Configure enabled actions for specific models in the model settings.
 
 ### Button Display Order (Priority)
 
-Action buttons beneath assistant messages are sorted by their `priority` valve value in **ascending order** — lower values appear first (leftmost), higher values appear later (rightmost). The default priority is `0`.
+Action buttons beneath assistant messages are sorted by their `priority` valve value in **ascending order**: lower values appear first (leftmost), higher values appear later (rightmost). The default priority is `0`.
 
 To control the order, add a `priority` field to your Action's Valves:
 
@@ -185,36 +191,11 @@ async def action(self, body: dict, __event_emitter__=None):
     # Perform time-consuming operation
     result = await some_long_running_function()
 
-    return {"content": f"Processing completed: {result}"}
+    return {"messages": [{"id": body["id"], "content": f"Processing completed: {result}"}]}
 ```
 
 ### File and Media Handling
-Actions can work with uploaded files and generate new media:
-
-```python
-async def action(self, body: dict):
-    message = body
-
-    # Access uploaded files
-    if message.get("files"):
-        for file in message["files"]:
-            # Process file based on type
-            if file["type"] == "image":
-                # Image processing logic
-                pass
-
-    # Return new files
-    return {
-        "content": "Analysis complete",
-        "files": [
-            {
-                "type": "image",
-                "url": "generated_chart.png",
-                "name": "Analysis Chart"
-            }
-        ]
-    }
-```
+The payload an action receives carries the conversation's messages, not their attachments, and returning a `files` list does nothing. To reach a chat's files, use `body["chat_id"]` with the chat and file APIs, and surface anything you produce through `__event_emitter__` or by rewriting the message content.
 
 ### User Context and Permissions
 Actions can access user information and respect permissions:
@@ -222,13 +203,13 @@ Actions can access user information and respect permissions:
 ```python
 async def action(self, body: dict, __user__=None):
     if __user__["role"] != "admin":
-        return {"content": "This action requires admin privileges"}
+        return {"messages": [{"id": body["id"], "content": "This action requires admin privileges"}]}
 
     user_name = __user__["name"]
-    return {"content": f"Hello {user_name}, admin action completed"}
+    return {"messages": [{"id": body["id"], "content": f"Hello {user_name}, admin action completed"}]}
 ```
 
-## Example - Specifying Action Frontmatter
+## Example: Specifying Action Frontmatter
 
 Each Action function can include a docstring at the top to define metadata for the button. This helps customize the display and behavior of your Action in Open WebUI.
 
@@ -237,12 +218,12 @@ Example of supported frontmatter fields:
 - `author`: Name of the creator.
 - `version`: Version number of the Action.
 - `required_open_webui_version`: Minimum compatible version of Open WebUI.
-- `icon_url (optional)`: A URL pointing to an icon image (PNG, SVG, JPEG, etc.). While base64 data URIs are technically supported, **using a hosted URL is strongly recommended** — see the warning below.
+- `icon_url (optional)`: A URL pointing to an icon image (PNG, SVG, JPEG, etc.). While base64 data URIs are technically supported, **using a hosted URL is strongly recommended**. See the warning below.
 
-:::danger Avoid Base64 Icons — Use URLs Instead
+:::danger Avoid Base64 Icons, Use URLs Instead
 Do **not** embed base64-encoded images as your `icon_url`. The icon data for every action is included in the `/api/models` API response, which is sent to the frontend on every page load for **every model** that has the action enabled.
 
-**Example of the impact:** If you use a 500 KB base64 icon for an action, and that action is enabled on 20 models, the API response grows by **20 × 500 KB = ~10 MB** — just for that one action. If you have three such actions, that becomes **~30 MB of unnecessary payload**. This will:
+**Example of the impact:** If you use a 500 KB base64 icon for an action, and that action is enabled on 20 models, the API response grows by **20 × 500 KB = ~10 MB**, just for that one action. If you have three such actions, that becomes **~30 MB of unnecessary payload**. This will:
 - **Significantly slow down frontend load times** for all users
 - **Increase backend memory usage and network bandwidth** on every request
 - **Degrade the overall user experience**, especially on slower connections
@@ -250,7 +231,7 @@ Do **not** embed base64-encoded images as your `icon_url`. The icon data for eve
 Instead, host your icon as a static file (e.g., on your web server, a CDN, or a public URL) and reference it by URL. This keeps the API payload minimal.
 :::
 
-**Example (Recommended — URL icon):**
+**Example (Recommended, URL icon):**
 
 <details>
 <summary>Example</summary>
@@ -298,13 +279,13 @@ class Action:
         })
 
         if not response:
-            return {"content": "Action cancelled by user"}
+            return None
 
-        # Process the message
-        original_content = body.get("content", "")
-        enhanced_content = f"Enhanced: {original_content}"
+        # Process the message the button was pressed on
+        message = body["messages"][-1]
+        enhanced_content = f"Enhanced: {message.get('content', '')}"
 
-        return {"content": enhanced_content}
+        return {"messages": [{"id": body["id"], "content": enhanced_content}]}
 ```
 
 </details>
@@ -319,13 +300,13 @@ async def action(self, body: dict, __event_emitter__=None):
     try:
         # Action logic here
         result = perform_operation()
-        return {"content": f"Success: {result}"}
+        return {"messages": [{"id": body["id"], "content": f"Success: {result}"}]}
     except Exception as e:
         await __event_emitter__({
             "type": "notification",
             "data": {"type": "error", "content": f"Action failed: {str(e)}"}
         })
-        return {"content": "Action encountered an error"}
+        return {"messages": [{"id": body["id"], "content": "Action encountered an error"}]}
 ```
 
 ### Performance Considerations
@@ -342,11 +323,11 @@ async def action(self, body: dict, __event_emitter__=None):
 ## Integration with Open WebUI Features
 
 Actions integrate seamlessly with other Open WebUI features:
-- **Models** - Actions can be model-specific or global
-- **Tools** - Actions can invoke external tools and APIs
-- **Files** - Actions can process uploaded files and generate new ones
-- **Memory** - Actions can access conversation history and context
-- **Permissions** - Actions respect user roles and access controls
-- **[Rich UI Embedding](/features/extensibility/plugin/development/rich-ui)** - Actions can return HTML content that renders as interactive iframes in the chat
+- **Models**: Actions can be model-specific or global
+- **Tools**: Actions can invoke external tools and APIs
+- **Files**: Actions can process uploaded files and generate new ones
+- **Memory**: Actions can access conversation history and context
+- **Permissions**: Actions respect user roles and access controls
+- **[Rich UI Embedding](/features/extensibility/plugin/development/rich-ui)**: Actions can return HTML content that renders as interactive iframes in the chat
 
 For more examples and community-contributed actions, visit [https://openwebui.com/search](https://openwebui.com/search) where you can discover, download, and explore custom functions built by the Open WebUI community.

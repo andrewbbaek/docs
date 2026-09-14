@@ -3,7 +3,7 @@ sidebar_position: 3
 title: "Research Assistant"
 ---
 
-# 🔍 Research and Summarize Any Topic
+# Research and Summarize Any Topic
 
 Give the AI a question, and it gathers information from the web, organizes it, and writes a structured briefing.
 
@@ -18,9 +18,9 @@ Give the AI a question, and it gathers information from the web, organizes it, a
 4. Creates a structured Markdown briefing with sections, source citations, and comparison tables
 5. Saves as both Markdown and PDF
 
-{/* TODO: Screenshot — Chat showing the AI gathering information from 6+ sources and producing a structured briefing document. The file browser shows research_briefing.md being previewed with headers, bullet points, and a comparison table. */}
+{/* TODO: Screenshot: Chat showing the AI gathering information from 6+ sources and producing a structured briefing document. The file browser shows research_briefing.md being previewed with headers, bullet points, and a comparison table. */}
 
-{/* TODO: Screenshot — The briefing document showing an executive summary, a comparison table of key companies and their technology approaches, and a source list with URLs. */}
+{/* TODO: Screenshot: The briefing document showing an executive summary, a comparison table of key companies and their technology approaches, and a source list with URLs. */}
 
 ## Skill content
 

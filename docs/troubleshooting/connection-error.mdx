@@ -14,7 +14,7 @@ If you're experiencing connectivity problems with Open WebUI, especially when us
 You might be experiencing these issues if you see:
 - Empty responses like `"{}"` in the chat
 - Errors like `"Unexpected token 'd', "data: {"id"... is not valid JSON"`
-- Garbled markdown (visible `##`, `**`, broken formatting) during streaming—see [Streaming Response Corruption](#-garbled-markdown--streaming-response-corruption)
+- Garbled markdown (visible `##`, `**`, broken formatting) during streaming, see [Streaming Response Corruption](#-garbled-markdown--streaming-response-corruption)
 - WebSocket connection failures in browser console
 - WebSocket connection failures in CLI logs
 - Login problems or session issues
@@ -60,7 +60,7 @@ WEBSOCKET_REDIS_URL=redis://redis:6379/1
 
 The `WEBUI_URL` must be set correctly BEFORE using OAuth/SSO. Since it's a persistent config variable, you can only change it by:
 - Disabling persistent config temporarily with `ENABLE_PERSISTENT_CONFIG=false`
-- Changing it in Admin Panel > Settings > WebUI URL
+- Changing it in Settings > Admin > General > WebUI URL
 - Setting it correctly before first launch
 
 **CORS Configuration Details**
@@ -75,11 +75,11 @@ For reverse proxy and TLS setups, check our [tutorials here](/reference/https).
 
 WebSocket support is required for Open WebUI v0.5.0 and later. If WebSockets aren't working:
 
-1. **Check your reverse proxy configuration** - Ensure `Upgrade` and `Connection` headers are properly set
-2. **Verify CORS settings** - WebSocket connections respect CORS policies
-3. **Check browser console** - Look for WebSocket connection errors
-4. **Test direct connection** - Try connecting directly to Open WebUI without the proxy to isolate the issue.
-5. **Check for HTTP/2 WebSocket Issues** - Some proxies (like HAProxy 3.x) enable HTTP/2 by default. If your proxy handles client connections via HTTP/2 but the backend/application doesn't support RFC 8441 (WebSockets over H2) properly, the instance may "freeze" or stop responding. 
+1. **Check your reverse proxy configuration**: Ensure `Upgrade` and `Connection` headers are properly set
+2. **Verify CORS settings**: WebSocket connections respect CORS policies
+3. **Check browser console**: Look for WebSocket connection errors
+4. **Test direct connection**: Try connecting directly to Open WebUI without the proxy to isolate the issue.
+5. **Check for HTTP/2 WebSocket Issues**: Some proxies (like HAProxy 3.x) enable HTTP/2 by default. If your proxy handles client connections via HTTP/2 but the backend/application doesn't support RFC 8441 (WebSockets over H2) properly, the instance may "freeze" or stop responding. 
    - **Fix for HAProxy**: Add `option h2-workaround-bogus-websocket-clients` to your configuration or force the backend connection to use HTTP/1.1.
    - **Fix for Nginx**: Ensure you are using `proxy_http_version 1.1;` in your location block (which is the default in many Open WebUI examples).
 
@@ -121,12 +121,12 @@ If streaming responses show garbled markdown rendering (e.g., visible `##`, `**`
 
 - Raw markdown tokens visible in responses (`##`, `**`, `###`)
 - Bold markers appearing incorrectly (`** Control:**` instead of `**Control:**`)
-- Words or sections randomly missing from responses
+- Words or sections randomly missing from responses (if the proxy turns out to be fine, see [Missing Text with the Faster JSON Encoder](#missing-text-with-the-faster-json-encoder))
 - Formatting works correctly when streaming is disabled
 
 ### Cause: Nginx Proxy Buffering
 
-When nginx's proxy buffering is enabled, it re-chunks the SSE (Server-Sent Events) stream arbitrarily. This breaks markdown tokens across chunk boundaries—for example, `**bold**` becomes separate chunks `**` + `bold` + `**`, causing the markdown parser to fail.
+When nginx's proxy buffering is enabled, it re-chunks the SSE (Server-Sent Events) stream arbitrarily. This breaks markdown tokens across chunk boundaries: for example, `**bold**` becomes separate chunks `**` + `bold` + `**`, causing the markdown parser to fail.
 
 ### Solution: Disable Proxy Buffering
 
@@ -163,6 +163,45 @@ Disabling proxy buffering also **significantly improves streaming speed**, as re
 - **Traefik**: Check compression/buffering middleware settings
 - **Caddy**: Generally handles SSE correctly by default, but check for any buffering plugins
 
+### Missing Text with the Faster JSON Encoder
+
+If pieces of a reply go missing and the proxy is not the cause, check whether `ENABLE_ORJSON=True` is set. On v0.11.0 that setting sends three invisible characters unescaped: line separator (`U+2028`), paragraph separator (`U+2029`) and next line (`U+0085`). Anything reading the response stream line by line counts them as a line break, so a reply carrying one arrives split and the piece it landed in is dropped with no error, in the chat and in external clients reading the OpenAI-compatible stream alike. All three are rare in ordinary text, so this is an edge case rather than something you would hit in normal use. Upgrading past v0.11.0 fixes it, and unsetting `ENABLE_ORJSON` avoids it in the meantime.
+
+## 📭 Blank Replies When the Model Uses a Tool
+
+### Common Symptoms
+
+- The assistant message comes back **completely empty**, with no error in the UI and nothing in the logs at any log level.
+- It looks **random**: most turns are fine, and the same prompt sometimes works and sometimes does not.
+- The provider still bills you for output tokens on the empty turn.
+- The stored message has `content: ''` and `output: []` while `usage.completion_tokens` is non-zero.
+- It gets much worse once tools are enabled, and worst of all with the builtin tools, since the model calls those on its own.
+
+### Cause: the provider omits `index` on streamed tool calls
+
+The OpenAI streaming schema puts an `index` field on every tool call delta, which is what lets a client stitch the fragments of a call back together across chunks. Open WebUI keys its accumulator on that field. A provider that sends each tool call complete in a single chunk and leaves `index` out is off-schema, and the call is dropped. The turn then ends with no text and no tool run, which is the empty message you see.
+
+This is not tied to one vendor. It affects any OpenAI-compatible endpoint that streams tool calls without `index`. **Google's OpenAI compatibility layer at `https://generativelanguage.googleapis.com/v1beta/openai` is the known case**, and Gemini 3 models add a second problem on top: a proprietary `thought_signature` that Google requires to be sent back on the follow-up request, which no OpenAI-schema client will do.
+
+### Confirm it in one command
+
+Ask the endpoint directly and look at the tool call chunk. Substitute your own URL, key and model:
+
+```bash
+curl -s -N -X POST "https://your-provider.example/v1/chat/completions" -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" -d '{"model":"your-model","stream":true,"messages":[{"role":"user","content":"What is the weather in Paris?"}],"tools":[{"type":"function","function":{"name":"get_weather","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}]}'
+```
+
+In the `delta.tool_calls` entry, look for `"index"`. If it is absent, you have this problem. The `index` on the surrounding `choices` entry is a different field and does not count.
+
+### Solutions
+
+1. **Put a gateway in front.** LiteLLM, OpenRouter or any proxy that talks the provider's native API and emits schema-correct OpenAI output. This is the only option that keeps native tool calling and the builtin tools working.
+2. **Switch the model to Legacy function calling.** In the model's **Advanced Params**, set **Function Calling** to **Legacy**. Tools are then selected by a separate non-streaming request and never go through the streaming accumulator. Note that **Default** is not the same as Legacy here: an unset value means native. The trade-off is that the builtin tools (Memory and the rest) are unavailable in Legacy mode, since they are injected only for native function calling.
+3. **Turn tools off for that model.** If you only want plain chat, disable the **builtin tools** capability on the model so it never tries to call anything. Chat completions themselves are unaffected by this bug.
+4. **Use a pipe.** A [pipe function](/features/extensibility/plugin/functions/pipe) that calls the provider's own API directly bypasses the OpenAI-compatible path entirely.
+
+Open WebUI follows the OpenAI Chat Completions schema and does not add per-provider workarounds for endpoints that diverge from it, which is the same reasoning described under [Protocol-Oriented Design](/getting-started/quick-start/connect-a-provider/starting-with-openai-compatible#protocol-oriented-design).
+
 ## 🌐 Frontend vs. Backend Connections (localhost Confusion)
 
 Several Open WebUI features offer **two ways** to configure connections: a **user/direct** method (from the browser) and an **admin/global** method (from the backend). These work at completely different network levels, and the same URL can succeed in one and fail in the other.
@@ -176,7 +215,7 @@ Several Open WebUI features offer **two ways** to configure connections: a **use
 
 ### Why the Same URL Can Work and Fail
 
-When you add a URL like `https://myserver.com/api` as a **user/direct** connection, your browser resolves `myserver.com` and connects directly. When you add the same URL as an **admin/global** connection, the Open WebUI backend resolves that hostname — and inside a Docker container, it may resolve to `127.0.0.1`, bypassing your reverse proxy entirely.
+When you add a URL like `https://myserver.com/api` as a **user/direct** connection, your browser resolves `myserver.com` and connects directly. When you add the same URL as an **admin/global** connection, the Open WebUI backend resolves that hostname, and inside a Docker container, it may resolve to `127.0.0.1`, bypassing your reverse proxy entirely.
 
 **Common symptoms:**
 - 502 Bad Gateway on admin-configured connections while user connections work fine
@@ -189,9 +228,25 @@ When you add a URL like `https://myserver.com/api` as a **user/direct** connecti
 - Internal IPs (e.g. `http://192.168.1.50:8000`)
 
 :::tip
-This applies to **all** backend-proxied connections in Open WebUI — not just Open Terminal. The same pattern affects [Tool Server connections](/features/extensibility/plugin/tools/openapi-servers/open-webui#main-difference-where-are-requests-made-from), [Open Terminal admin connections](/features/open-terminal#enterprise-multi-user), and Ollama/OpenAI API endpoints.
-This applies to **all** backend-proxied connections in Open WebUI. The same pattern affects [Tool Server connections](/features/extensibility/plugin/tools/openapi-servers/open-webui#main-difference-where-are-requests-made-from), [Open Terminal admin connections](/features/open-terminal#enterprise-multi-user), and Ollama/OpenAI API endpoints.
+This applies to **all** backend-proxied connections in Open WebUI, not just Open Terminal. The same pattern affects [Tool Server connections](/features/extensibility/plugin/tools/openapi-servers/open-webui#main-difference-where-are-requests-made-from), [Open Terminal admin connections](/features/open-terminal#enterprise-multi-user), and Ollama/OpenAI API endpoints.
 :::
+
+## "Open WebUI backend required" / Front-end Only Error
+
+**Symptom:** the page loads but shows *"Open WebUI backend required. Oops! You're using an unsupported method (frontend only). Please serve the WebUI from the backend."* It commonly appears on a **second instance**, behind a reverse proxy, or through an **SSH tunnel**, while another instance works fine.
+
+**What it actually means:** on load, the frontend fetches `/api/config` from its own origin. If that request fails, Open WebUI shows this error. It does **not** mean you are running a frontend-only build. The official image is a single process that serves the UI and the API together on container port **`8080`**, so if the page reached you, the API is supposed to be there too. The error means the request for `/api/config` at that origin did not reach the backend.
+
+Two causes account for almost all of these:
+
+1. **A port-mapping or tunnel mismatch.** The origin you opened serves the page but does not route `/api/config` to the backend. Check that:
+   - Each container maps its host port to container port **`8080`**, for example `ports: ["3001:8080"]`. Mapping to any other internal port breaks the API while still potentially serving cached assets.
+   - Your SSH tunnel forwards the local port to the **remote host port that instance actually publishes**. Running several instances makes it easy to forward to the wrong one.
+   - Quick test from the browser machine, through the tunnel: `curl http://localhost:3001/api/config`. JSON back means the backend is reachable, so look at cause 2. An empty reply or connection refused means the tunnel or port mapping is wrong.
+
+2. **A stale service worker serving a cached page.** Open WebUI registers a service worker, so the browser can display the cached UI shell while the live `/api/config` call fails, which produces this exact error. A normal hard refresh does not unregister the service worker. Clear it from **DevTools > Application > Service Workers > Unregister** for that origin, or open the instance in a fresh private/incognito window.
+
+This is a deployment and networking condition, not an Open WebUI bug.
 
 ## Connection to Ollama Server
 
@@ -220,6 +275,34 @@ If Open WebUI in Docker cannot connect to Ollama running on the host machine:
 docker run -d --network=host -v open-webui:/app/backend/data -e OLLAMA_BASE_URL=http://127.0.0.1:11434 --name open-webui --restart always ghcr.io/open-webui/open-webui:main
 ```
 After running the above, your WebUI should be available at `http://localhost:8080`.
+
+## 🧭 Intermittent Name Lookup Failures (Often Reported as "Model not found")
+
+### Common Symptoms
+
+- Chats fail with **"Model not found"** for a model that is configured and worked a moment ago, then work again later.
+- The Ollama model list empties by itself, and a restart brings it back.
+- Logs show `ClientConnectorDNSError` or `Cannot connect to host ...` for a hostname that resolves fine from a shell inside the same container.
+- On some Windows hosts, every request to an external model provider fails from the first start.
+
+### Cause
+
+Open WebUI asks the operating system to turn hostnames into addresses. v0.11.0 used the c-ares resolver for that instead, with no way to turn it off, and c-ares does not behave the same everywhere:
+
+- On some Windows hosts it finds no usable nameserver, so no external name resolves at all.
+- In Docker it can intermittently stop resolving container names even though Docker's own DNS is still answering. The result is a wiped model list and in-flight chats failing with a misleading "Model not found", because a name that will not resolve is indistinguishable from a provider that has no such model.
+
+### Solution
+
+Upgrade. Name lookups go through the operating system again by default, so there is nothing to configure, and container names, `host.docker.internal`, Compose `extra_hosts` and Kubernetes `hostAliases` all behave the way the rest of the host does.
+
+c-ares is still available as an option, and on a busy instance it is worth trying, since it removes a queueing delay in front of every outbound request:
+
+```bash
+AIOHTTP_CLIENT_ASYNC_DNS_RESOLVER=true
+```
+
+If you turn it on, exercise your models, web search and any internal services afterwards, and be aware that names your system serves from somewhere other than `/etc/resolv.conf` or the hosts file (`.local` via avahi/mDNS, NIS or LDAP directories, Windows NBNS) may stop resolving. See [`AIOHTTP_CLIENT_ASYNC_DNS_RESOLVER`](/reference/env-configuration#aiohttp_client_async_dns_resolver) for the full picture and [Performance → DNS Resolver](/troubleshooting/performance#dns-resolver) for what it buys you.
 
 ## ⏱️ Model List Loading Issues (Slow UI / Unreachable Endpoints)
 
@@ -251,7 +334,7 @@ This reduces how long Open WebUI waits for each endpoint before giving up and co
 
 ### Solution 2: Fix or Remove Unreachable Endpoints
 
-1. Go to **Admin Settings → Connections**
+1. Go to **Settings > Admin > Connections**
 2. Review your Ollama and OpenAI base URLs
 3. Remove or correct any unreachable IP addresses or hostnames
 4. Save the configuration
@@ -300,7 +383,7 @@ See the [Environment Configuration](/reference/env-configuration#aiohttp_client_
 
 ## 🐢 Slow Performance or Timeouts on Low-Spec Hardware
 
-If you're experiencing slow page loads, API timeouts, or unresponsive UI—especially on resource-constrained systems—this may be related to database session sharing.
+If you're experiencing slow page loads, API timeouts, or unresponsive UI, especially on resource-constrained systems, this may be related to database session sharing.
 
 ### Cause
 

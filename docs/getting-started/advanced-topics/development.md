@@ -5,12 +5,32 @@ title: "Developing Open WebUI"
 
 # Developing Open WebUI
 
+:::danger Work on `dev`, never on `main`
+`dev` is the pre-release branch, and everything lands there first. Every fix and every feature goes to `dev` and stays there, so a bug fixed today is on `dev` today and reaches `main` at the next release. `main` is a snapshot of `dev` taken on release day, which means building from `main` gives you code that is already behind.
+
+A fresh `git clone` puts you on `main`. Switch before you do anything else:
+
+```bash
+git clone https://github.com/open-webui/open-webui.git
+cd open-webui
+git checkout dev
+```
+
+Pull requests are opened against `dev` as well. One opened against `main` has to be redone.
+:::
+
 **Run Open WebUI from source for development and testing.**
 
 This guide covers setting up a local development environment with the frontend (SvelteKit) and backend (Python/FastAPI) running side by side. You will need two terminal sessions, one for each.
 
 :::tip Don't need a full dev environment?
-You can test the latest changes by running the [dev Docker image](/getting-started/quick-start) instead: `docker run -d -p 3000:8080 -v open-webui-dev:/app/backend/data --name open-webui-dev ghcr.io/open-webui/open-webui:dev`
+Run the `:dev` pre-release image instead. It is the same code, rebuilt nightly as changes land, with nothing for you to build:
+
+```bash
+docker run -d -p 3001:8080 --add-host=host.docker.internal:host-gateway -v open-webui-dev:/app/backend/data -e WEBUI_SECRET_KEY=your-secret-key --name open-webui-dev --restart always ghcr.io/open-webui/open-webui:dev
+```
+
+Testing it and reporting what you find is the lowest-effort way to help, and it is what makes releases good. See [Using the Dev Branch](/getting-started/quick-start/install-methods/docker-images#using-the-dev-branch) for the details, and note the separate volume.
 :::
 
 ---
@@ -19,9 +39,16 @@ You can test the latest changes by running the [dev Docker image](/getting-start
 
 | Requirement | Version |
 |-------------|---------|
-| **Python** | 3.11+ |
+| **Python** | 3.11 or 3.12 (see note below; 3.13 not supported yet) |
 | **Node.js** | 22.10+ |
 | **Git** | Any recent version |
+
+:::info Python version compatibility
+Open WebUI supports **Python 3.11 and 3.12**. **3.13 is not supported yet**: a few of our dependencies still need to ship 3.13-compatible releases, and until they do, installs on 3.13 will fail or break at runtime.
+
+- **For production**, use the [Docker image](/getting-started/quick-start) or the **latest Python 3.11**. This is the combination we test against most heavily.
+- **3.12 also works**, but we have seen very rare reports of odd behaviour on 3.12 that we have not reproduced on 3.11. If you are running into something inexplicable on 3.12, dropping to the latest 3.11 is the first thing to try.
+:::
 
 :::warning Separate your data
 Never share your database or data directory between dev and production. Dev builds may include database migrations that are not backward-compatible.
@@ -34,7 +61,10 @@ Never share your database or data directory between dev and production. Dev buil
 ```bash
 git clone https://github.com/open-webui/open-webui.git
 cd open-webui
+git checkout dev
 ```
+
+`git checkout dev` is the important line. Without it you are building the last release rather than the current code.
 
 ---
 

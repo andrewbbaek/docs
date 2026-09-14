@@ -1,20 +1,29 @@
 ---
 sidebar_position: 0
 slug: /
-title: 🏡 Home
+title: Home
 hide_title: true
 ---
 
  
 import { SponsorList } from "@site/src/components/SponsorList";
+import ThemedImage from '@theme/ThemedImage';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Open WebUI
 
-**Open WebUI is an [extensible](https://docs.openwebui.com/features/extensibility/plugin/), feature-rich, and user-friendly self-hosted AI platform designed to operate entirely offline.** It supports **Ollama** and **OpenAI-compatible APIs**, making it a powerful, provider-agnostic solution for both local and cloud-based models.
+Open WebUI is **a home for AI**, a self-hosted AI platform that's **[extensible](https://docs.openwebui.com/features/extensibility/plugin/)**, **[feature-rich](https://docs.openwebui.com/features/)**, user-friendly, and built to run **[entirely offline](https://openwebui.com/sovereign-ai)**. With support for **Ollama** and **OpenAI-compatible APIs**, it gives you a powerful, provider-agnostic interface for both local and cloud-based models.
 
-![Open WebUI Demo](/images/demo.png)
+<ThemedImage
+  alt="Open WebUI: a self-hosted AI platform connecting local and cloud models with tools and knowledge"
+  sources={{
+    light: useBaseUrl('/images/banners/home-light.svg'),
+    dark: useBaseUrl('/images/banners/home-dark.svg'),
+  }}
+  style={{ width: '100%', margin: '0.25rem 0 1.75rem' }}
+/>
 
 ![GitHub stars](https://img.shields.io/github/stars/open-webui/open-webui?style=social)
 ![GitHub forks](https://img.shields.io/github/forks/open-webui/open-webui?style=social)
@@ -28,12 +37,22 @@ import TabItem from '@theme/TabItem';
   <TabItem value="docker" label="Docker" default>
 
 ```bash
-docker run -d -p 3000:8080 --add-host=host.docker.internal:host-gateway -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
+docker run -d -p 3000:8080 --add-host=host.docker.internal:host-gateway -v open-webui:/app/backend/data -e WEBUI_SECRET_KEY=your-secret-key --name open-webui --restart always ghcr.io/open-webui/open-webui:main
 ```
 
 Then open [http://localhost:3000](http://localhost:3000).
 
-For GPU support, Docker Compose, and more → [Full Docker guide](/getting-started/quick-start)
+<img
+  alt="Open WebUI running a live analysis: Claude Opus 5 reads a spreadsheet through Open Terminal and renders an interactive revenue dashboard inline in the chat"
+  src={useBaseUrl('/images/landing/hero.png')}
+  style={{ width: '100%', borderRadius: 12, margin: '0.75rem 0 0.5rem' }}
+/>
+
+<p style={{ fontSize: '0.85rem', opacity: 0.7, margin: '0 0 1rem' }}>
+  Powered by <a href="/features/open-terminal">Open Terminal</a> and some of our <a href="/features/extensibility/community">amazing community built plugins</a>.
+</p>
+
+For GPU support, Docker Compose, and more → [Quick Start](/getting-started/quick-start) and [Docker images and tags](/getting-started/quick-start/install-methods/docker-images)
 
   </TabItem>
   <TabItem value="pip" label="pip">
@@ -60,55 +79,84 @@ Then open [http://localhost:8080](http://localhost:8080).
 
 Download the desktop app from [**github.com/open-webui/desktop**](https://github.com/open-webui/desktop). It runs Open WebUI natively on your system without Docker or manual setup.
 
-:::warning Experimental
-The desktop app is a **work in progress** and is not yet stable. For production use, install via **Docker** or **Python**.
+:::info
+For production deployments, install via **Docker** or **Python**.
 :::
 
   </TabItem>
 </Tabs>
 
 :::tip Running? Read this next.
-Installed Open WebUI but not sure where to start? The [**Essentials for Open WebUI**](/getting-started/essentials) guide covers the six things every new user needs to know: plugins, tool calling, task models, context management, RAG, and Open Terminal.
+Installed Open WebUI but not sure where to start? The [**Essentials for Open WebUI**](/getting-started/essentials) guide covers what every new user needs to know: plugins, tool calling, task models, context management, RAG, web search and Open Terminal.
 :::
 
 ---
 
 ## Getting Started
 
-- [**Quick Start**](/getting-started/quick-start) — Docker, Python, Kubernetes install options
-- [**Connect a Provider**](/getting-started/quick-start/connect-a-provider) — Ollama, OpenAI, Anthropic, vLLM, and more
-- [**Essentials for Open WebUI**](/getting-started/essentials) - Start here after your first install. Plugins, tool calling, task models, context management, RAG, Open Terminal.
-- [**Connect an Agent**](/getting-started/quick-start/connect-an-agent) — Hermes Agent, OpenClaw, and other autonomous AI agents
-- [**Updating**](/getting-started/updating) — Keep your instance current
-- [**Development Branch**](/getting-started/quick-start) — Help test the latest changes before stable release
-- [**Advanced Topics**](/getting-started/advanced-topics) — Scaling, logging, and advanced configuration
+- [**Quick Start**](/getting-started/quick-start): Docker, Python and desktop app installs, with every other method one link away
+- [**Connect a Provider**](/getting-started/quick-start/connect-a-provider): Ollama, OpenAI, Anthropic, vLLM, and more
+- [**Essentials for Open WebUI**](/getting-started/essentials): Start here after your first install. Plugins, tool calling, task models, context management, RAG, web search, Open Terminal.
+- [**Connect an Agent**](/getting-started/quick-start/connect-an-agent): Open WebUI Computer, Hermes Agent, OpenClaw, and other autonomous AI agents
+- [**Updating**](/getting-started/updating): Keep your instance current
+- [**Development Branch**](/getting-started/quick-start/install-methods/docker-images#using-the-dev-branch): Help test the latest changes before stable release
+- [**Advanced Topics**](/getting-started/advanced-topics): Scaling, logging, and advanced configuration
 
 ---
 
 ## Explore
 
-- [**Features**](/features) — Discover what Open WebUI can do
-- [**Tutorials**](/tutorials) — Step-by-step guides
-- [**FAQ**](/faq) — Common questions answered
-- [**Troubleshooting**](/troubleshooting) — Fix common issues
-- [**Reference**](/reference) — Environment variables and API details
+- [**Features**](/features): Discover what Open WebUI can do
+- [**Tutorials**](/tutorials): Step-by-step guides
+- [**FAQ**](/faq): Common questions answered
+- [**Troubleshooting**](/troubleshooting): Fix common issues
+- [**Reference**](/reference): Environment variables and API details
+
+---
+
+## Open WebUI Computer
+
+[**Open WebUI Computer**](/ecosystem/computer) is the cutting-edge agent harness and runtime for your real machine. You install one app, add AI (an API key, a local model, or a coding-agent subscription you already have like Claude Code or Codex), and it works on the actual files, branches, services, and tools already on that computer, with approvals and plan mode. The file the agent edits is the file on your disk; the terminal it uses is the terminal on your machine.
+
+Run Computer with uv:
+
+```bash
+uvx cptr@latest run
+```
+
+Then create an account and open a folder.
+
+Because it's your whole machine, you get the rest for free: files, editor, terminal, git, previews, and agent chats in any browser, from your desk or your phone; an assistant you can message from Telegram or WhatsApp; scheduled agents that report back to you. Everything runs locally on hardware you own, nothing hosted elsewhere.
+
+Computer and Open WebUI are one ecosystem moving at two speeds, on purpose. **Open WebUI** is the stable platform: enterprise-ready, multi-user, what teams and organizations deploy and rely on. **Computer** moves faster: new real-machine agent capabilities are built and shipped there first, hardened in daily use, and graduated into Open WebUI where they fit. If you want the bleeding edge of what we're building, it lands in Computer first.
+
+- New to it? [What is Computer?](/ecosystem/computer/what-is-computer) · [Quickstart](/ecosystem/computer/quickstart) · [Use cases](/ecosystem/computer/use-cases/)
+- Already run Open WebUI? [Use a Computer workspace as a model in Open WebUI](/ecosystem/computer/automate/open-webui)
+
+---
+
+## Also by Open WebUI
+
+- [**open-terminal**](https://github.com/open-webui/open-terminal): Turn Open WebUI into a full agent harness with a real action runtime: sandboxed files, shell, code execution, previews, and artifacts.
+- [**oikb**](https://github.com/open-webui/oikb): Keep your Open WebUI knowledge bases in sync. Watches local folders, GitHub repos, S3 buckets, Confluence, and 40+ other sources.
+- [**mcpo**](https://github.com/open-webui/mcpo): MCP-to-OpenAPI proxy. Use any MCP tool server with Open WebUI (or any OpenAPI client) without custom glue code.
 
 ---
 
 ## Enterprise
 
-Need **custom branding**, **SLA support**, or **Long-Term Support (LTS)** versions?
+Need **custom branding**, **SLA support**, or **Long-Term Support (LTS)**?
 → [Learn about Enterprise plans](/enterprise)
 
 ---
 
 ## Get Involved
 
-- [**Contributing**](/contributing) — Help build Open WebUI
-- [**Development Setup**](/getting-started/advanced-topics/development) — Run the project locally from source
-- [**Discord**](https://discord.gg/5rJgQTnV4s) — Join the community
-- [**GitHub**](https://github.com/open-webui/open-webui) — Report issues, submit PRs
-- [**Careers**](https://careers.openwebui.com/) — Join our team
+- [**Contributing**](/contributing): Help build Open WebUI
+- [**Development Setup**](/getting-started/advanced-topics/development): Run the project locally from source
+- [**Discord**](https://discord.gg/5rJgQTnV4s): Join the community
+- [**GitHub**](https://github.com/open-webui/open-webui): Report issues, submit PRs
+- [**Careers**](https://careers.openwebui.com/): Join our team
 
 ---
 
@@ -144,3 +192,16 @@ Need **custom branding**, **SLA support**, or **Long-Term Support (LTS)** versio
   </a>
 
 </div>
+
+---
+
+## For LLMs and coding agents
+
+Machine-readable entry points to this documentation:
+
+- [llms.txt](https://docs.openwebui.com/llms.txt): curated index of every docs page with short descriptions.
+- [llms-full.txt](https://docs.openwebui.com/llms-full.txt): every docs page concatenated into a single Markdown file.
+- [agents.txt](https://docs.openwebui.com/agents.txt): concise instructions for agents using these docs.
+- [api/search?q=YOUR_QUERY](https://docs.openwebui.com/api/search?q=YOUR_QUERY): deterministic docs search.
+
+All files are generated fresh on every deploy.

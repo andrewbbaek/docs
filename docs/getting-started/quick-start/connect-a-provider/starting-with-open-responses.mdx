@@ -28,9 +28,8 @@ Open Responses builds on the OpenAI Responses API format but is designed to work
 
 ## Step 1: Add or Edit a Connection
 
-1. Go to the ⚙️ **Admin Settings**.
-2. Navigate to **Connections > OpenAI > Manage** (look for the wrench icon).
-3. Click ➕ **Add New Connection** or edit an existing connection.
+1. Go to **Settings > Admin > Connections** and find the **Manage OpenAI API Connections** list.
+2. Click ➕ **Add Connection** to create one, or click **Configure** (the gear icon) on an existing connection to edit it.
 
 ---
 
@@ -39,9 +38,9 @@ Open Responses builds on the OpenAI Responses API format but is designed to work
 In the connection modal, look for the **API Type** setting:
 
 - **Chat Completions** (default): Uses the standard OpenAI Chat Completions API format.
-- **Responses** (experimental): Uses the Open Responses API format.
+- **Responses**: Uses the Open Responses API format.
 
-Click the toggle to switch to **Responses**. You'll see an "Experimental" label indicating this feature is still in development.
+Click the toggle to switch to **Responses**.
 
 ![API Type Toggle](/images/getting-started/quick-start/api-type-responses.gif)
 
@@ -54,6 +53,49 @@ Enter the connection details for a provider that supports the Open Responses for
 - **URL**: Your provider's API endpoint
 - **API Key**: Your authentication credentials
 - **Model IDs**: (Optional) Specify specific models to use
+
+---
+
+## Step 4 (Optional): Enable Native Server-Side Tools
+
+Some providers, most notably **OpenAI**, expose **server-side tools** through the Responses API. The headline example is **native web search**: the model runs the search itself, then returns a grounded answer with source citations. Open WebUI forwards these tools to the provider and renders their results natively, so nothing else needs to be wired up.
+
+:::info This is separate from Open WebUI's Web Search
+Native server-side tools run entirely on the provider's side and only work on **API Type: Responses** connections (Steps 1 to 2 above). They are **independent** of Open WebUI's own [Web Search](/features/chat-conversations/web-search) providers (Tavily, SearXNG, etc.), you don't need to configure or enable those. Leave the model's **Web Search** capability **off**; the native tool replaces it, and enabling both is redundant.
+:::
+
+To turn on native web search for a model:
+
+1. Go to **Workspace → Models** and edit (✏️) a model that uses your Responses connection.
+2. Expand **Advanced Params**.
+3. At the bottom, click **➕ Add Custom Parameter** and set:
+   - **Name**: `tools`
+   - **Value**: `[{"type": "web_search"}]`
+4. Save the model.
+
+When you chat with that model, the provider performs web searches server-side, and Open WebUI streams:
+
+- A **"Web Search"** status block showing the queries the model ran.
+- **Clickable source citations** drawn from the results.
+- The model's grounded answer.
+
+:::tip Multiple tools and tool options
+The `tools` custom parameter accepts any tool your provider supports in the Responses API. Pass several by adding them to the array:
+
+```json
+[{"type": "web_search"}, {"type": "code_interpreter"}]
+```
+
+You can also include provider-specific options on a tool object (for web search, e.g. `search_context_size` or `user_location`). See your provider's Responses API documentation. Older OpenAI model snapshots may require `{"type": "web_search_preview"}` instead of `web_search`.
+:::
+
+:::warning Admin only
+The **Add Custom Parameter** button is shown to administrators in the model editor. Custom parameters are forwarded to the provider as-is, so only use valid Responses API tool definitions.
+:::
+
+:::info Custom parameters set instance-wide still apply
+The same button exists under **Model Defaults** in **Settings > Admin > Models**, which applies to every model. Custom parameters from the two places are combined name by name, so adding `tools` here keeps the instance-wide ones the model does not name. Use the same name in both places and the model's value is the one sent. See [Global Model Defaults](/features/workspace/models#global-model-defaults-admin).
+:::
 
 ---
 
@@ -80,9 +122,15 @@ Tool calls, re-invocations, and streaming are supported for Responses API connec
 1. Check the [Open WebUI Discord](https://discord.gg/5rJgQTnV4s) for known issues
 2. Report bugs on [GitHub](https://github.com/open-webui/open-webui/issues)
 
+### Providers that deviate from the Responses format
+
+Not every endpoint that advertises the Responses format emits it exactly, and Open WebUI absorbs the common deviations rather than losing the reply over them. A stream that closes reporting no content keeps whatever was already streamed. A fragment arriving before the item it belongs to is skipped without truncating the rest of the answer. A provider that hands over its finished message only at the very end has that message applied, so the reply and its citations are stored and carry into the next turn.
+
+Open WebUI cannot recover content the provider never sent. If replies are consistently short or empty, compare the same prompt against the provider's own API before reporting it here.
+
 ### Stateful sessions
 
-By default, Open WebUI treats Responses API connections as **stateless** — it manages conversation history locally and sends the full context with each request. If your upstream provider supports **stateful sessions** (server-side response storage with `previous_response_id` anchoring, e.g., direct OpenAI connections), you can enable `ENABLE_RESPONSES_API_STATEFUL=true` to let the provider manage conversation state.
+By default, Open WebUI treats Responses API connections as **stateless**: it manages conversation history locally and sends the full context with each request. If your upstream provider supports **stateful sessions** (server-side response storage with `previous_response_id` anchoring, e.g., direct OpenAI connections), you can enable `ENABLE_RESPONSES_API_STATEFUL=true` to let the provider manage conversation state.
 
 :::warning
 Most proxies and third-party Responses API endpoints are stateless and will break if stateful mode is enabled. Only use this with providers that explicitly support stateful Responses API sessions.

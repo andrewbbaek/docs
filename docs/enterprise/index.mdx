@@ -1,25 +1,34 @@
 ---
 sidebar_position: 400
-title: "🏢 Open WebUI for Enterprise"
+title: "Open WebUI for Enterprise"
 ---
 
 import { Testimonals } from "@site/src/components/Testimonals";
-
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
 ### The AI Platform Trusted by Leading Organizations
-
 
 Open WebUI is one of the **fastest-growing AI platforms** in the world. Designed for **enterprise deployment**, Open WebUI enables businesses to deploy AI capabilities with **full control** over their data, infrastructure, and roadmap.
 
 Whether you're a startup scaling fast or a Fortune 500 managing global operations, Open WebUI is built for the reliability, security, and flexibility your teams need to deploy AI confidently and securely, **without vendor lock-in**.
 
-![Open WebUI Inc.](/images/enterprise/hero.png)
+<ThemedImage
+  alt="Open WebUI Enterprise platform diagram showing identity, data, deployment, and support connected through self-hosted control"
+  sources={{
+    light: useBaseUrl('/images/banners/enterprise-light.svg'),
+    dark: useBaseUrl('/images/banners/enterprise-dark.svg'),
+  }}
+  style={{ width: '100%', margin: '0.25rem 0 1.75rem' }}
+/>
 
 ### See Open WebUI in Action
 
-Discover how [**Samsung Semiconductor Inc.**](https://semiconductor.samsung.com/) built a secure, self-hosted AI platform using Open WebUI, with teams reporting complex workflows reduced from *days to hours* while maintaining strict data-security requirements.
+Organizations across industries are using Open WebUI to deploy secure, scalable AI platforms. Here are a few of their stories:
 
-[Read the full story →](/enterprise/customers/samsung-semiconductor)
+- [**Samsung Semiconductor Inc.**](/enterprise/customers/samsung-semiconductor) built a secure, self-hosted AI platform with teams reporting complex workflows reduced from **days to hours** while maintaining strict data-security requirements.
+- [**Public Storage**](/enterprise/customers/public-storage) reached **~50% active adoption in 30 days** with a champion-driven rollout on GCP, reducing a key operational workflow by **more than 80%**.
+- [**Astellas Pharma Inc.**](/enterprise/customers/astellas-pharma) enabled **3,000+ employees** to create and share **420+ custom AI models** on a secure Azure deployment, with **68% reporting significant efficiency gains** and a **+43 NPS**.
 
 <Testimonals />
 
@@ -33,12 +42,12 @@ Discover how [**Samsung Semiconductor Inc.**](https://semiconductor.samsung.com/
 To help us respond quickly, **please use your official work email address** and include your expected **end user count (seats)**. Personal email accounts (e.g., gmail.com, yahoo.com, outlook.com icloud.com, qq.com, hotmail.com, gmx.com, etc.) are flagged by our system and **will not receive a response**.
 :::
 
-[**Contact Enterprise Sales → sales@openwebui.com**](mailto:sales@openwebui.com)
+[**Contact Enterprise Sales →**](https://openwebui.com/contact/sales)
 
 | Deployment Model | License Requirements |
 | :--- | :--- |
 | **Standard Use** (Internal use with original branding exactly intact.) | **[Free](/license)** |
-| **Enterprise Use** (White-labeling, rebranding, or modifications to original branding) | **[Enterprise License Required](/license)** |
+| **Enterprise Use** (White-labeling, rebranding, modifications to original branding, or enterprise-exclusive offerings like [Terminals](/features/open-terminal/terminals/)) | **[Enterprise License Required](/license)** |
 
 Whether you need a full enterprise deployment or just want to explore what Open WebUI can do for your organization, we're here to help. Send us your deployment **end user count (seats)**, and let’s explore how we can work together!
 
@@ -51,7 +60,7 @@ Enterprise licenses and partnership opportunities are available **exclusively to
 :::
 
 :::warning Are you an Agency or Reseller?
-If you are a consulting agency, solution provider, or reseller looking to deploy Open WebUI for a client, please review our **[Partnership Guidelines for Agencies](./partners)**.
+If you are a consulting agency, solution provider, or reseller looking to deploy Open WebUI for a client, please review our **[Partnership Guidelines for Agencies](/enterprise/partners)**.
 :::
 
 ---
@@ -77,11 +86,14 @@ Built for large-scale enterprise deployments with multi-node high availability, 
 #### [🏗️ Architecture & High Availability](./architecture)
 Understand how Open WebUI supports large-scale deployments. Explore multi-node configurations designed for high availability, workload optimization across regions, and architectural patterns for mission-critical reliability.
 
+#### [🌐 Sovereign AI](./sovereign-ai)
+Plan AI deployments around infrastructure, data residency, model exposure, identity, permissions, logs, backups, and operator access. Open WebUI provides the self-hosted workspace layer for governed AI usage inside the boundaries your organization chooses. See the [Sovereign AI product overview](https://openwebui.com/sovereign-ai) for a summary.
+
 #### [🛡️ Security](./security)
 Learn how Open WebUI integrates with your existing identity infrastructure, including LDAP, Active Directory, and SSO providers. Ideal for organizations requiring on-premise or air-gapped deployments.
 
 #### [🚀 Deployment Options](./deployment)
-Choose the right deployment pattern for your organization — from Python on auto-scaling VMs to managed container services to Kubernetes with Helm.
+Choose the right deployment pattern for your organization, from Python on auto-scaling VMs to managed container services to Kubernetes with Helm.
 
 #### [🔗 Integration](./integration)
 Connect proprietary, third-party, or local AI models. Extend functionality with plugins, pipelines, and custom workflows that fit your existing infrastructure.
@@ -98,7 +110,7 @@ Review the dedicated support options available to enterprise customers. Support 
 
 :::tip
 
-Open WebUI is **free to use as-is**. You can deploy it today without an enterprise agreement.
+Thanks to our enterprise clients and individual sponsors who support the project, Open WebUI is **free to use as-is** for everyone. You can deploy it today without an enterprise agreement.
 
 We are **sustained** by our users. **Optional** licenses are available to **support** ongoing development while providing **additional benefits such as white labeling, and dedicated support** for businesses.
 
@@ -107,7 +119,7 @@ We are **sustained** by our users. **Optional** licenses are available to **supp
 
 Ready to explore how Open WebUI can help you transform your organization?
 
-[**Contact Enterprise Sales → sales@openwebui.com**](mailto:sales@openwebui.com)
+[**Contact Enterprise Sales →**](https://openwebui.com/contact/sales)
 
 ---
 
@@ -117,4 +129,4 @@ Even if you **don't need an enterprise license**, consider becoming a **sponsor*
 
 Open WebUI is free to use, but building, maintaining, and improving a platform of this scale takes real time, resources, and ongoing engineering work. Sponsorships help fund stability, security, new features, and long-term development.
 
-💙 **[Sponsor Open WebUI](https://github.com/sponsors/tjbck)**
+💙 **[Sponsor Open WebUI](https://github.com/sponsors/open-webui)**

@@ -28,8 +28,9 @@ The following table lists the available URL parameters, their function, and exam
 - **Description**: The `models` and `model` parameters allow you to specify which [language models](/features/workspace/models) should be used for a particular chat session.
 - **How to Set**: You can use either `models` for multiple models or `model` for a single model.
 - **Example**:
-  - `/?models=model1,model2` – This initializes the chat with `model1` and `model2`.
-  - `/?model=model1` – This sets `model1` as the sole model for the chat.
+  - `/?models=model1,model2`: This initializes the chat with `model1` and `model2`.
+  - `/?model=model1`: This sets `model1` as the sole model for the chat.
+- **Note**: Without either parameter, a new chat falls back to the instance's [Selected Models](/features/workspace/models#selected-and-pinned-models-admin) ([`DEFAULT_MODELS`](/reference/env-configuration#default_models)) when nothing valid is selected, for instance when the model used last has since been removed or hidden. Passing one of these parameters suppresses that fallback, so the chat waits for the model you named rather than being switched to a default.
 
 ### 2. **YouTube Transcription**
 
@@ -47,7 +48,7 @@ The following table lists the available URL parameters, their function, and exam
 
 ### 4. **Web Search**
 
-- **Description**: Enabling `web-search` allows the chat session to access [web search](/category/web-search/) functionality.
+- **Description**: Enabling `web-search` allows the chat session to access [web search](/features/chat-conversations/web-search) functionality.
 - **How to Set**: Set this parameter to `true` to enable web search.
 - **Example**: `/?web-search=true`
 - **Behavior**: If enabled, the chat can retrieve web search results as part of its responses.
@@ -80,6 +81,8 @@ The following table lists the available URL parameters, their function, and exam
 - **Example**: `/?temporary-chat=true`
 - **Behavior**: This initiates a disposable chat session without saving history or applying advanced configurations.
   - **Note**: Document processing in temporary chats is frontend-only for privacy. Complex files requiring backend parsing (e.g., DOCX) may not be fully supported.
+  - **Note**: A temporary chat is identified by a per-session ID rather than a stored chat record, so no chat record is created and nothing the run produces (messages, generated images, status updates, titles or tags) is written to the database. Features that need a saved chat, such as [task lists](/features/chat-conversations/chat-features/task-management), [terminals scoped per chat](/features/open-terminal/terminals/orchestration/contexts) and the [ask user tool](/features/extensibility/plugin/tools), are unavailable there. Chats in [channels](/features/channels) are treated the same way.
+  - **Note**: The list of unavailable features above is complete. Any feature or tool not listed there works in a temporary chat exactly as it does in a normal one. That includes tools that store or send data of their own, memory, notes and web search for example. Disable a tool on the model if you do not want a temporary chat to use it.
 
 ### 9. **Code Interpreter**
 

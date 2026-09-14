@@ -1,3 +1,5 @@
+import path from "path";
+import webpack from "webpack";
 import { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 
@@ -16,6 +18,9 @@ const shikiPlugin: [typeof rehypeShiki, RehypeShikiOptions] = [
 	},
 ];
 
+const shouldEnableGtag =
+	process.env.NODE_ENV === "production" && !process.argv.includes("start");
+
 const config: Config = {
 	title: "Open WebUI",
 	titleDelimiter: "/",
@@ -23,7 +28,7 @@ const config: Config = {
 	favicon: "images/favicon.png",
 
 	// Set the production url of your site here
-	url: "https://openwebui.com",
+	url: "https://docs.openwebui.com",
 	// Set the /<baseUrl>/ pathname under which your site is served
 	// For GitHub pages deployment, it is often '/<projectName>/'
 	baseUrl: "/",
@@ -46,24 +51,44 @@ const config: Config = {
 	// Enable Mermaid for diagrams
 	markdown: {
 		mermaid: true,
+		hooks: {
+			onBrokenMarkdownLinks: "throw",
+		},
 	},
-	themes: ["@docusaurus/theme-mermaid"],
+	clientModules: ["./src/clientModules/ensure-gtag.js"],
+	themes: [
+		"@docusaurus/theme-mermaid",
+		[
+			require.resolve("@easyops-cn/docusaurus-search-local"),
+			{
+				hashed: true,
+				indexBlog: false,
+				docsRouteBasePath: "/",
+				highlightSearchTermsOnTargetPage: true,
+				explicitSearchResultPath: true,
+			},
+		],
+	],
 
 	presets: [
 		[
 			"classic",
 			{
-				gtag: {
-					trackingID: "G-522JSJVWTB",
-					anonymizeIP: false,
-				},
+				...(shouldEnableGtag
+					? {
+							gtag: {
+								trackingID: "G-522JSJVWTB",
+								anonymizeIP: false,
+							},
+						}
+					: {}),
 				docs: {
 					sidebarPath: "./sidebars.ts",
 					routeBasePath: "/",
 					// Please change this to your repo.
 					// Remove this to remove the "edit this page" links.
 					editUrl: "https://github.com/open-webui/docs/blob/main",
-					exclude: ["**/tab-**/**"],
+					exclude: ["**/tab-**/**", "**/_template.*"],
 					beforeDefaultRehypePlugins: [shikiPlugin],
 				},
 				// blog: false,
@@ -89,8 +114,8 @@ const config: Config = {
 		navbar: {
 			title: "Open WebUI",
 			logo: {
-				src: "images/logo.png",
-				srcDark: "images/logo-dark.png",
+				src: "images/favicon.png",
+				srcDark: "images/favicon.png",
 			},
 			items: [
 				{
@@ -167,6 +192,10 @@ const config: Config = {
 							to: "https://openwebui.com",
 						},
 						{
+							label: "Sovereign AI",
+							to: "/enterprise/sovereign-ai",
+						},
+						{
 							label: "Report a Vulnerability / Responsible Disclosure",
 							to: "https://github.com/open-webui/open-webui/security",
 						},
@@ -181,12 +210,28 @@ const config: Config = {
 				styles: [],
 			},
 			darkTheme: {
-				plain: { color: "#ccc", backgroundColor: "#1a1a1a" },
+				plain: { color: "#ccc", backgroundColor: "#000" },
 				styles: [],
 			},
 		},
 	} satisfies Preset.ThemeConfig,
-	plugins: [require.resolve("docusaurus-lunr-search")],
+
+	plugins: [
+		// Rank verbatim phrase matches above token results (see src/client/exactSearch.js).
+		() => ({
+			name: "docs-exact-search",
+			configureWebpack() {
+				return {
+					plugins: [
+						new webpack.NormalModuleReplacementPlugin(
+							/searchByWorker$/,
+							path.resolve(__dirname, "src/client/exactSearch.js")
+						),
+					],
+				};
+			},
+		}),
+	],
 };
 
 export default config;

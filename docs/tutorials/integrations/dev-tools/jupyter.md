@@ -35,11 +35,9 @@ Here is the target configuration we're going to set-up through this tutorial.
 
 # Step 1: Launch OUI and Jupyter
 
-To accomplish this, I used `docker-compose` to launch a stack that includes both services, along with my LLMs, but this should also work if run each docker container separately.
+To accomplish this, I used Docker Compose to launch a stack that includes both services, along with my LLMs, but this should also work if run each docker container separately.
 
 ```yaml title="docker-compose.yml"
-version: "3.8"
-
 services:
 open-webui:
 image: ghcr.io/open-webui/open-webui:latest
@@ -65,10 +63,10 @@ open-webui:
 jupyter_data:
 ```
 
-You can launch the above stack by running the below command in the directory where the `docker-compose` file is saved:
+You can launch the above stack by running the below command in the directory where the `docker-compose.yml` file is saved:
 
-```bash title="Run docker-compose"
-docker-compose up -d
+```bash title="Run Docker Compose"
+docker compose up -d
 ```
 
 You should now be able to access both services at the following URLs:
@@ -84,7 +82,7 @@ When accessing the Jupyter service, you will need the `JUPYTER_TOKEN` defined ab
 
 # Step 2: Configure Code Execution for Jupyter
 
-Now that we have Open-WebUI and Jupter running, we need to configure Open-WebUI's Code Execution to use Jupyter under Admin Panel -> Settings -> Code Execution. Since Open-WebUI is constantly releasing and improving this feature, I recommend always reviewing the possible configuraitons in the [`configs.py` file](https://github.com/open-webui/open-webui/blob/6fedd72e3973e1d13c9daf540350cd822826bf27/backend/open_webui/routers/configs.py#L72) for the latest and greatest. As of v0.5.16, this includes the following:
+Now that we have Open-WebUI and Jupter running, we need to configure Open-WebUI's Code Execution to use Jupyter under Settings > Admin > Code Execution. Since Open-WebUI is constantly releasing and improving this feature, I recommend always reviewing the possible configuraitons in the [`configs.py` file](https://github.com/open-webui/open-webui/blob/6fedd72e3973e1d13c9daf540350cd822826bf27/backend/open_webui/routers/configs.py#L72) for the latest and greatest. As of v0.5.16, this includes the following:
 
 | Open-WebUI Env Var | Value |
 | ------------------------------------- | -------------------------------- |
@@ -99,6 +97,8 @@ Now that we have Open-WebUI and Jupter running, we need to configure Open-WebUI'
 | `CODE_INTERPRETER_JUPYTER_AUTH` | token |
 | `CODE_INTERPRETER_JUPYTER_AUTH_TOKEN` | 123456 |
 | `CODE_INTERPRETER_JUPYTER_TIMEOUT` | 60 |
+
+Once Jupyter is the engine, setting [`ENABLE_ORJSON=True`](/reference/env-configuration#enable_orjson) on Open WebUI gets the output of a run into the chat faster, which is most noticeable when the code prints a lot or generates images. It is read once at startup, so restart after setting it.
 
 ## Step 3: Test the Connection
 

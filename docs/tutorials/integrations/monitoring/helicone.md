@@ -39,7 +39,7 @@ By enabling Helicone, you can log LLM requests, evaluate and experiment with pro
 
 Create a [Helicone account](https://www.helicone.ai/) and log in to generate an [API key](https://us.helicone.ai/settings/api-keys).
 
-*— Make sure to generate a [write only API key](https://docs.helicone.ai/helicone-headers/helicone-auth). This ensures you only allow logging data to Helicone without read access to your private data.*
+*Make sure to generate a [write only API key](https://docs.helicone.ai/helicone-headers/helicone-auth). This ensures you only allow logging data to Helicone without read access to your private data.*
 
 ### Step 2: Create an OpenAI account and generate your API key
 
@@ -62,7 +62,7 @@ To launch your first Open WebUI application, use the command from [Open WebUI do
      ghcr.io/open-webui/open-webui
 ```
 
-If you already have a Open WebUI application deployed, go to the `Admin Panel` > `Settings` > `Connections` and click on the `+` sign for "Managing OpenAI API Connections". Update the following properties:
+If you already have a Open WebUI application deployed, go to the `Settings` > `Admin` > `AI` > `Connections` and click on the `+` sign for "Managing OpenAI API Connections". Update the following properties:
 
 - Your `API Base URL` would be ``https://oai.helicone.ai/v1/<YOUR_HELICONE_API_KEY>``
 - The `API KEY` would be your OpenAI API key.

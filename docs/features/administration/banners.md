@@ -35,7 +35,7 @@ Banners are best for short, high-visibility messages such as:
 This is the most straightforward way to manage banners:
 
 1. Log in to your Open WebUI instance as an administrator.
-2. Navigate to **Admin Panel** → **Settings** → **General**.
+2. Navigate to **Settings** → **Admin** → **System** → **General**.
 3. Locate the **Banners** section.
 4. Click the **+** icon to add a new banner.
 5. Click **Save** to apply your changes.
@@ -47,9 +47,10 @@ You can configure the following options for each banner:
   - `success` (Green)
   - `warning` (Yellow)
   - `error` (Red)
-- **Title:** The main heading of the banner.
-- **Content:** The main message (HTML only).
+- **Content:** The main message (HTML only). There is no separate title field, put the heading at the start of the content.
 - **Dismissible:** If enabled, users can close the banner.
+
+The globe selector next to the **Banners** heading stores the content per language, so each user reads the banner in the language their interface is set to. See [Translations](/features/administration/translations#banners).
 
 #### How dismissing works
 
@@ -94,10 +95,11 @@ Each banner object supports the following properties:
 
 - `id` (string, required): Unique identifier for the banner. Used to track whether a user has dismissed it.
 - `type` (string, required): Banner style. Must be one of: `info`, `success`, `warning`, `error`.
-- `title` (string, optional): Title text.
+- `title` (string, optional): Accepted and stored, but never displayed. The interface renders `content` only, so anything you put here is invisible.
 - `content` (string, required): Main banner message (HTML only).
 - `dismissible` (boolean, required): Whether the user can dismiss the banner.
 - `timestamp` (integer, required): Present in configuration, but currently not used by the frontend to control display timing.
+- `i18n` (object, optional): Translated content, keyed by language, each entry holding a `content` string. A user is shown the entry matching their interface language, falling back to `content`. See [Translations](/features/administration/translations#banners).
 
 ### Recommended `id` strategy (important)
 
@@ -113,7 +115,7 @@ If users dismissed a banner and you want them to see an updated message, change 
 
 ## Supported content formatting (HTML only)
 
-Banner `title` and `content` support a subset of **HTML only** — Markdown syntax is not rendered. Unsupported tags may render as plain text or break the layout.
+Banner `content` supports a subset of **HTML only**: Markdown syntax is not rendered. Unsupported tags may render as plain text or break the layout.
 
 ### Text formatting
 
@@ -154,7 +156,84 @@ Inline styles are supported on allowed tags:
 <span style="background: linear-gradient(90deg,#e0f2fe,#fef9c3);">Gradient background</span>
 ```
 
-> Keep styling minimal. Overly large padding, font sizes, or complex layouts can cause banners to become tall or visually inconsistent across themes.
+You can also style a full message area by wrapping the content in a block element:
+
+```html
+<div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;line-height:1.3;display:block;width:100%;box-sizing:border-box;">
+  <b>Notice title</b><br>
+  Short supporting message.
+</div>
+```
+
+> Keep styling purposeful. Large padding, large font sizes, or deeply nested layouts can make banners too tall and visually inconsistent across themes.
+
+---
+
+## Designing effective banners
+
+Banners work best when they are easy to scan, visually distinct, and short enough not to interrupt normal work.
+
+### Structure the message
+
+Use a predictable structure:
+
+- Start with the event type or status: `Maintenance`, `Incident`, `Policy update`, `New feature`.
+- Put the most important detail first: date, time, impact, or required action.
+- Keep the body to one or two short sentences.
+- Add one link only if users need more details.
+
+For longer notices, use short sections instead of one long paragraph. For multilingual notices, separate languages with a subtle `<hr>` or use a collapsible `<details>` section.
+
+### Make severity visible
+
+Use the banner `type` consistently:
+
+- `info`: neutral announcements and product updates.
+- `success`: resolved incidents or completed changes.
+- `warning`: planned maintenance, degraded service, or upcoming action needed.
+- `error`: active incidents or urgent action required.
+
+Avoid using `error` for non-urgent announcements. Users learn to ignore alerts when every message looks critical.
+
+### Use color carefully
+
+Color should support the banner type, not compete with it:
+
+- Use soft backgrounds for the full message area.
+- Use stronger colors for small accents, labels, or left borders.
+- Keep text contrast high enough to read in bright rooms and on dim screens.
+- Avoid mixing many unrelated colors in one banner.
+
+A useful pattern is a pale background plus a stronger left border:
+
+```html
+<div style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;border-left:6px solid #64748b;border-radius:12px;padding:10px 14px;line-height:1.3;display:block;width:100%;box-sizing:border-box;">
+  <b>Notice title</b><br>
+  Short supporting message.
+</div>
+```
+
+### Keep layouts responsive
+
+Banners are shown inside the application layout and must still work on narrow screens.
+
+- Prefer `display:flex;flex-wrap:wrap` for rows containing labels, dates, or badges.
+- Avoid fixed widths.
+- Use `width:100%;box-sizing:border-box` for full-width styled blocks.
+- Keep icons and badges small so they do not increase banner height.
+- Test the banner with a narrow browser window before using it broadly.
+
+### Avoid accidental extra height
+
+Banner content treats literal newlines as line breaks. If you use explicit `<br>` tags, keep the raw HTML compact and avoid adding extra blank lines or indentation in the banner content field.
+
+This compact style:
+
+```html
+<b>Notice</b><br>One short sentence.<br>Another short sentence.
+```
+
+renders more predictably than heavily formatted HTML with many line breaks.
 
 ---
 
@@ -162,7 +241,7 @@ Inline styles are supported on allowed tags:
 
 The following are not supported in banners and may render as plain text or break the layout:
 
-- Headings (`<h1>`–`<h6>`)
+- Headings (`<h1>` to `<h6>`)
 - Lists (`<ul>`, `<ol>`)
 - Tables
 - Blockquotes
@@ -255,6 +334,22 @@ Service updates: <a href="https://example.com/status" target="_blank"><u>Status 
 </span>
 ```
 
+### Pattern: Styled notice block
+
+Use a full-width styled block when the whole message should read as one announcement area. Keep this HTML compact when pasting it into the banner content field, especially if it also contains `<br>` tags.
+
+```html
+<div style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;border-left:6px solid #64748b;border-radius:12px;padding:10px 14px;line-height:1.3;display:block;width:100%;box-sizing:border-box;"><div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;margin-bottom:5px;"><span style="display:inline-flex;align-items:center;background:#64748b;color:#fff;padding:1px 7px;border-radius:999px;line-height:1.25;font-size:10px;font-weight:700;letter-spacing:.04em;">NOTICE</span><b>Notice title</b><span style="display:inline-flex;align-items:center;background:#fff;color:#334155;padding:1px 8px;border-radius:999px;line-height:1.25;border:1px solid #cbd5e1;">Key detail</span></div><div>Short supporting message.</div></div>
+```
+
+This pattern uses:
+
+- A pale background for the full message area.
+- A stronger left border for fast visual recognition.
+- A small uppercase label for the event type.
+- A compact date/time chip for the most important metadata.
+- `flex-wrap` so the header row still works on narrow screens.
+
 ### Pattern: Collapsible details (keep banners short)
 
 ```html
@@ -324,4 +419,4 @@ No. The `timestamp` field is currently not used by the frontend to control wheth
 
 ### Can I show content in multiple languages?
 
-Yes. You can include multiple languages in `content`. If you want to keep the banner short, place the secondary language in a `<details>` block.
+Yes, and the better way is to translate the banner rather than stacking languages in one message: use the globe selector next to the **Banners** heading and each user reads only their own language. See [Translations](/features/administration/translations#banners). Banners set through `WEBUI_BANNERS` can carry the same thing as an `i18n` object on the banner, keyed by language, with a `content` string in each entry.

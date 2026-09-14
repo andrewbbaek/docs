@@ -5,7 +5,7 @@ title: "Scaling Open WebUI"
 
 # Scaling Open WebUI
 
-Open WebUI is designed to scale with your needs — from a single user to organization-wide rollouts across entire enterprises and institutions. The steps below walk you through how to configure your deployment as your needs grow.
+Open WebUI is designed to scale with your needs, from a single user to organization-wide rollouts across entire enterprises and institutions. The steps below walk you through how to configure your deployment as your needs grow.
 
 Open WebUI follows a **stateless, container-first architecture**, which means scaling it looks a lot like scaling any modern web application. Whether you're moving from a hobby setup to supporting a department, or growing from hundreds to thousands of users, the same set of building blocks apply.
 
@@ -22,16 +22,16 @@ Out of the box, Open WebUI runs as a **single container** with:
 - A **single Uvicorn worker** process
 - **No external dependencies** (no Redis, no external DB)
 
-This is perfect for personal use, small teams, or evaluation. The scaling journey begins when you outgrow any of these defaults — and crucially, **both SQLite databases** (main and vector) must be replaced before you can safely run multiple processes.
+This is perfect for personal use, small teams, or evaluation. The scaling journey begins when you outgrow any of these defaults. Crucially, **both SQLite databases** (main and vector) must be replaced before you can safely run multiple processes.
 
 ---
 
-## Step 1 — Switch to PostgreSQL
+## Step 1: Switch to PostgreSQL
 
-**When:** You plan to run more than one Open WebUI instance, or you want better performance and reliability for your database. **You should also switch if your SQLite file lives on anything other than a locally-attached SSD/NVMe** — see the callout below.
+**When:** You plan to run more than one Open WebUI instance, or you want better performance and reliability for your database. **You should also switch if your SQLite file lives on anything other than a locally-attached SSD/NVMe**: see the callout below.
 
 :::tip You don't need this step if you're a single-replica deployment on local disk
-**Staying on SQLite is fine for:** single-replica deployments, personal use, evaluation, home lab setups, and small teams — **as long as the database file lives on a locally-attached SSD/NVMe and you're not running multiple replicas or workers.** The 0.8 → 0.9 async-backend story only bites when `webui.db` is on network storage; on local disk, SQLite is fast, supported, and a perfectly reasonable default. No migration needed. Skip this step and move on to whichever later step you actually need.
+**Staying on SQLite is fine for:** single-replica deployments, personal use, evaluation, home lab setups, and small teams, **as long as the database file lives on a locally-attached SSD/NVMe and you're not running multiple replicas or workers.** The 0.8 → 0.9 async-backend story only bites when `webui.db` is on network storage; on local disk, SQLite is fast, supported, and a perfectly reasonable default. No migration needed. Skip this step and move on to whichever later step you actually need.
 :::
 
 SQLite stores everything in a single file and doesn't handle concurrent writes from multiple processes well. PostgreSQL is a production-grade database that supports many simultaneous connections.
@@ -46,7 +46,7 @@ DATABASE_URL=postgresql://user:password@db-host:5432/openwebui
 
 **Key things to know:**
 
-- Open WebUI does **not** migrate data between databases — plan this before you have production data in SQLite.
+- Open WebUI does **not** migrate data between databases, so plan this before you have production data in SQLite.
 - For high-concurrency deployments, tune `DATABASE_POOL_SIZE` and `DATABASE_POOL_MAX_OVERFLOW` to match your usage patterns. See [Database Optimization](/troubleshooting/performance#-database-optimization) for detailed guidance.
 - Remember that **each Open WebUI instance maintains its own connection pool**, so total connections = pool size × number of instances.
 - If you skip this step and run multiple instances with SQLite, you will see `database is locked` errors and data corruption. See [Database Corruption / "Locked" Errors](/troubleshooting/multi-replica#4-database-corruption--locked-errors) for details.
@@ -55,11 +55,13 @@ DATABASE_URL=postgresql://user:password@db-host:5432/openwebui
 A good starting point for tuning is `DATABASE_POOL_SIZE=15` and `DATABASE_POOL_MAX_OVERFLOW=20`. Keep the combined total per instance well below your PostgreSQL `max_connections` limit (default is 100).
 :::
 
+For credential handling and the SQLCipher-encrypted SQLite option, see the [Database section of the Hardening guide](/getting-started/advanced-topics/hardening#database).
+
 ### Why SQLite on network storage fails the moment you scale (or upgrade)
 
-Since 0.9.0 the backend data layer is **fully async** (async SQLAlchemy + `aiosqlite`). That change made Open WebUI dramatically more concurrent — and, as a side effect, made every pre-existing "SQLite is slow on NFS/CephFS/Azure Files" problem go from *tolerable* to *fatal* overnight. Many operators hit this right after upgrading from 0.8.x without changing anything else in their deployment.
+Since 0.9.0 the backend data layer is **fully async** (async SQLAlchemy + `aiosqlite`). That change made Open WebUI dramatically more concurrent and, as a side effect, made every pre-existing "SQLite is slow on NFS/CephFS/Azure Files" problem go from *tolerable* to *fatal* overnight. Many operators hit this right after upgrading from 0.8.x without changing anything else in their deployment.
 
-The mechanism in one paragraph: SQLite's durability guarantee is `fsync()` on every commit. On local SSD that's ~100 μs. On NFS / CephFS / Azure Files / Kubernetes PVCs backed by network storage that's 50–500 ms, sometimes seconds. In the old sync backend, FastAPI's ~40-thread worker pool acted as a natural throttle, so slow storage meant "slow app." In the async backend there's no thread-pool ceiling — the asyncio loop schedules thousands of DB coroutines in parallel, every slow `fsync` keeps a connection checked out for the full duration, and the SQLAlchemy async pool (default `pool_size=5` + `max_overflow=10` = 15 connections) saturates almost instantly. You then see:
+The mechanism in one paragraph: SQLite's durability guarantee is `fsync()` on every commit. On local SSD that's ~100 μs. On NFS / CephFS / Azure Files / Kubernetes PVCs backed by network storage that's 50 to 500 ms, sometimes seconds. In the old sync backend, FastAPI's ~40-thread worker pool acted as a natural throttle, so slow storage meant "slow app." In the async backend there's no thread-pool ceiling: the asyncio loop schedules thousands of DB coroutines in parallel, every slow `fsync` keeps a connection checked out for the full duration, and the SQLAlchemy async pool (default `pool_size=5` + `max_overflow=10` = 15 connections) saturates almost instantly. You then see:
 
 ```
 sqlalchemy.exc.TimeoutError: QueuePool limit of size 5 overflow 10 reached,
@@ -68,24 +70,24 @@ connection timed out, timeout 30.00
 
 Making the pool bigger just moves the breaking point. More connections means more concurrent slow `fsync`s hitting the same slow storage; the filesystem is still the bottleneck.
 
-On top of that, SQLite's WAL mode relies on a memory-mapped `-shm` file for cross-process coordination, and `mmap` over NFS is [officially unreliable per SQLite upstream](https://www.sqlite.org/faq.html#q5) — with high async concurrency it can produce actual locking pathologies (deadlocks, `PRAGMA journal_mode=WAL` that starts but never completes, multi-minute stalls on trivial queries).
+On top of that, SQLite's WAL mode relies on a memory-mapped `-shm` file for cross-process coordination, and `mmap` over NFS is [officially unreliable per SQLite upstream](https://www.sqlite.org/faq.html#q5): with high async concurrency it can produce actual locking pathologies (deadlocks, `PRAGMA journal_mode=WAL` that starts but never completes, multi-minute stalls on trivial queries).
 
 **There is no setting that fixes this while SQLite stays on network storage.** The three options are:
 
-1. **Best — switch to PostgreSQL (this step).** The DB server manages its own I/O against its own local storage. Your app reaches it over a network socket, but that hop is orders of magnitude cheaper than NFS `fsync`, and Postgres was designed from day one for concurrent writers. This is the only supported configuration for multi-replica, multi-user, or Kubernetes/Swarm deployments.
-2. **Move `webui.db` off network storage onto a local SSD/NVMe.** Only appropriate for single-node, low-user deployments. Your RAG files and uploads on NFS are fine — SQLite specifically is the problem, not the shared filesystem in general.
+1. **Best: switch to PostgreSQL (this step).** The DB server manages its own I/O against its own local storage. Your app reaches it over a network socket, but that hop is orders of magnitude cheaper than NFS `fsync`, and Postgres was designed from day one for concurrent writers. This is the only supported configuration for multi-replica, multi-user, or Kubernetes/Swarm deployments.
+2. **Move `webui.db` off network storage onto a local SSD/NVMe.** Only appropriate for single-node, low-user deployments. Your RAG files and uploads on NFS are fine: SQLite specifically is the problem, not the shared filesystem in general.
 3. **Temporary workaround if you cannot do either yet:**
    ```bash
    DATABASE_POOL_SIZE=1
    DATABASE_SQLITE_PRAGMA_BUSY_TIMEOUT=30000
    ```
-   Serializes to a single async connection, trading concurrency for stability. **Not supported long-term** — plan the real migration.
+   Serializes to a single async connection, trading concurrency for stability. **Not supported long-term**: plan the real migration.
 
 The short version: sync backends throttled concurrency through thread pools, so slow storage just made things *slow*. Async backends allow massive concurrency, which means slow `fsync`s stack up, connections stay checked out longer, the pool saturates, and the whole thing wedges. The same storage was tolerable before because the app wasn't asking it to do 20 concurrent `fsync`s.
 
 ---
 
-## Step 2 — Add Redis
+## Step 2: Add Redis
 
 **When:** You want to run multiple Open WebUI instances (horizontal scaling) or multiple Uvicorn workers.
 
@@ -103,10 +105,11 @@ ENABLE_WEBSOCKET_SUPPORT=true
 
 **Key things to know:**
 
-- Redis is **not needed** for single-instance deployments for basic functionality. However, **without Redis, signing out does not revoke tokens** — they remain valid until they expire (default: 4 weeks). If your deployment is production-facing or handles sensitive data, Redis is strongly recommended even for a single instance, or alternatively shorten `JWT_EXPIRES_IN` to limit exposure. See [Token Revocation](/getting-started/advanced-topics/hardening#token-revocation) in the Hardening guide for details.
+- Redis is **not needed** for single-instance deployments for basic functionality. However, **without Redis, signing out does not revoke tokens**: they remain valid until they expire (default: 4 weeks). If your deployment is production-facing or handles sensitive data, Redis is strongly recommended even for a single instance, or alternatively shorten `JWT_EXPIRES_IN` to limit exposure. See [Token Revocation](/getting-started/advanced-topics/hardening#token-revocation) in the Hardening guide for details.
 - If you're using Redis Sentinel for high availability, also set `REDIS_SENTINEL_HOSTS` and consider setting `REDIS_SOCKET_CONNECT_TIMEOUT=5` to prevent hangs during failover.
 - For AWS Elasticache or other managed Redis Cluster services, set `REDIS_CLUSTER=true`.
 - Make sure your Redis server has `timeout 1800` and a high enough `maxclients` (10000+) to prevent connection exhaustion over time.
+- For high-concurrency websocket streaming, review Redis Pub/Sub output buffer limits. Large Socket.IO events can disconnect Pub/Sub clients if Redis uses small default buffers; see [WebSocket Pub/Sub Buffer Limits](/tutorials/integrations/redis#websocket-pubsub-buffer-limits).
 - A **single Redis instance** is sufficient for the vast majority of deployments, even with thousands of users. You almost certainly do not need Redis Cluster unless you have specific HA/bandwidth requirements. If you think you need Redis Cluster, first check whether your connection count and memory usage are caused by fixable configuration issues (see [Common Anti-Patterns](/troubleshooting/performance#%EF%B8%8F-common-anti-patterns)).
 - Without Redis in a multi-instance setup, you will experience [WebSocket 403 errors](/troubleshooting/multi-replica#2-websocket-403-errors--connection-failures), [configuration sync issues](/troubleshooting/multi-replica#3-model-not-found-or-configuration-mismatch), and intermittent authentication failures.
 
@@ -114,14 +117,14 @@ For a complete step-by-step Redis setup (Docker Compose, Sentinel, Cluster mode,
 
 ---
 
-## Step 3 — Run Multiple Instances
+## Step 3: Run Multiple Instances
 
 **When:** You need to handle more users or want high availability (no downtime during deploys or if a container crashes).
 
 Open WebUI is stateless, so you can run as many instances as needed behind a **load balancer**. Each instance is identical and interchangeable.
 
 :::warning
-Before running multiple instances, ensure you have completed **Steps 1 and 2** (PostgreSQL and Redis). You also need a shared `WEBUI_SECRET_KEY` across all replicas — without it, users will experience [login loops and 401 errors](/troubleshooting/multi-replica#1-login-loops--401-unauthorized-errors). For a full pre-flight checklist, see the [Core Requirements Checklist](/troubleshooting/multi-replica#core-requirements-checklist).
+Before running multiple instances, ensure you have completed **Steps 1 and 2** (PostgreSQL and Redis). You also need a shared `WEBUI_SECRET_KEY` across all replicas. Without it, users will experience [login loops and 401 errors](/troubleshooting/multi-replica#1-login-loops--401-unauthorized-errors). For how to generate, store, and rotate that key (plus the matching `OAUTH_SESSION_TOKEN_ENCRYPTION_KEY`), see [Secret Key](/getting-started/advanced-topics/hardening#secret-key) in the Hardening guide. For a full pre-flight checklist, see the [Core Requirements Checklist](/troubleshooting/multi-replica#core-requirements-checklist).
 :::
 
 ### Option A: Container Orchestration (Recommended)
@@ -129,32 +132,109 @@ Before running multiple instances, ensure you have completed **Steps 1 and 2** (
 Use Kubernetes, Docker Swarm, or similar platforms to manage multiple replicas:
 
 - Keep `UVICORN_WORKERS=1` per container (let the orchestrator handle scaling, not the app)
-- Set `ENABLE_DB_MIGRATIONS=false` on all replicas except one designated "primary" pod to prevent migration race conditions — see [Updates and Migrations](/troubleshooting/multi-replica#updates-and-migrations) for the safe procedure
+- Set `ENABLE_DB_MIGRATIONS=false` on all replicas except one designated "primary" pod to prevent migration race conditions: see [Updates and Migrations](/troubleshooting/multi-replica#updates-and-migrations) for the safe procedure
 - Scale up/down by adjusting your replica count
 
-### Option B: Multiple Workers per Container
+### Option B: Multiple Workers per Container (Last Resort)
 
-For simpler setups (e.g., a single powerful server), increase `UVICORN_WORKERS`:
+On a single machine with no orchestrator at all, you can raise `UVICORN_WORKERS`:
 
 ```
 UVICORN_WORKERS=4
 ```
 
-This spawns multiple application processes inside a single container. You still need PostgreSQL and Redis when using this approach.
+:::warning This is the weakest way to scale
 
-:::info
-Container orchestration is generally preferred because it provides automatic restarts, rolling updates, and more granular resource control. Multiple workers inside a single container is a simpler alternative when orchestration isn't available.
+Prefer more containers even on one machine: Docker Compose runs replicas on a single host perfectly well, and gets you restarts one at a time and a per-container memory limit.
+
+Extra workers cost you everything replicas cost, PostgreSQL, Redis and a client-server vector database are all still required, and return none of the benefit. They share one container, so they share its memory limit and die with it, and they cannot be spread across machines when one stops being enough.
+
 :::
+
+### Offload HTTP Compression to the Load Balancer
+
+Once a load balancer, ingress, or CDN sits in front of Open WebUI, let **it** handle HTTP response compression and disable the application-level compression middleware:
+
+```
+ENABLE_COMPRESSION_MIDDLEWARE=false
+```
+
+By default every Open WebUI worker compresses its own HTTP responses (JSON API responses and static assets) with ZStd/Brotli/Gzip. Profiling shows this costs roughly **3–4% CPU per worker**, multiplied across every replica in a scaled deployment. Enabling compression at the proxy layer instead (e.g. Nginx `gzip on;`, Traefik's compress middleware, Cloudflare's default compression) keeps responses just as small on the wire while freeing that CPU on every worker, and lets CDNs cache static assets in pre-compressed form.
+
+WebSocket traffic and streaming chat responses (SSE) are never compressed by this middleware anyway, so disabling it has no effect on the chat streaming path. If nothing in front of Open WebUI compresses responses, the main cost of disabling is a larger first (uncached) page load, several megabytes of JavaScript/CSS, and larger big-JSON payloads (long chat histories, large model lists), which matters mostly on slow or mobile links. See [`ENABLE_COMPRESSION_MIDDLEWARE`](/reference/env-configuration#enable_compression_middleware) for the full trade-off discussion.
+
+WebSocket frames are compressed separately, by the websocket server itself, and that is worth switching off under heavy streaming:
+
+```
+UVICORN_WS_PER_MESSAGE_DEFLATE=false
+```
+
+Chat responses stream as a very small frame per token, so compressing each one costs processor time for every subscriber and saves almost nothing at that size. The frames that did benefit, a finished message or a set of sources, are a few hundred kilobytes at most even for a very long reply. See [`UVICORN_WS_PER_MESSAGE_DEFLATE`](/reference/env-configuration#uvicorn_ws_per_message_deflate).
+
+Two more websocket settings matter once a deployment is large. Each open tab sends a heartbeat every thirty seconds by default, so an instance holding thousands of idle tabs handles a steady stream of messages carrying nothing; `WEBSOCKET_HEARTBEAT_INTERVAL=60` halves that, at the cost of a disconnected user staying in the active count for longer, since the server holds a presence entry for four times the interval. And a response being streamed is held in Redis so a reconnecting browser can resume it, with the entry deleted as soon as that response finishes; `REDIS_RESPONSE_STREAM_TTL` puts an hour's expiry on the leftovers from workers killed mid-stream, which previously stayed forever. See [`WEBSOCKET_HEARTBEAT_INTERVAL`](/reference/env-configuration#websocket_heartbeat_interval) and [`REDIS_RESPONSE_STREAM_TTL`](/reference/env-configuration#redis_response_stream_ttl).
+
+#### Pair It with Static Asset Caching at the Proxy
+
+Disabling app-side compression works best when the proxy also **caches the static assets aggressively**, so the "larger first page load" downside effectively disappears: each browser downloads the (proxy-compressed) bundles once and then never asks for them again.
+
+Open WebUI's frontend is a SvelteKit app: all of its JavaScript/CSS lives under `/_app/immutable/` with **content-hashed filenames**. A given URL never changes content, an upgrade produces new filenames, so these files are safe to cache essentially forever. The HTML shell and `/_app/version.json` are the opposite: they must stay short-lived, because they are how browsers discover a new build (Open WebUI polls `version.json` to detect upgrades and reload).
+
+Example for Nginx:
+
+```nginx
+proxy_cache_path /var/cache/nginx/openwebui levels=1:2 keys_zone=OPENWEBUI_STATIC:10m
+                 max_size=1g inactive=7d use_temp_path=off;
+
+# Content-hashed SvelteKit bundles — immutable by construction, cache "forever"
+location ^~ /_app/immutable/ {
+    proxy_pass http://openwebui;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header Connection "";
+    proxy_buffering on;
+    proxy_cache OPENWEBUI_STATIC;
+    proxy_cache_valid 200 7d;
+    proxy_cache_lock on;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+}
+```
+
+- The `immutable` keyword stops browsers from revalidating on reload/F5, `max-age` alone doesn't. If a year feels uncomfortable, 30 days (`max-age=2592000, immutable`) gives nearly the same effect; the hashed filenames make staleness impossible either way.
+- **Do not** apply long caching to the HTML shell or `/_app/version.json`, leave those uncached or at a few minutes at most, or users won't pick up upgrades.
+- `proxy_cache` means each asset is fetched from a worker once per cache lifetime instead of once per user, removing the static file serving load from the Python workers entirely.
+- If Nginx compresses on the fly, note that it compresses on **every response** (its proxy cache stores the uncompressed body), so prefer moderate levels, `gzip_comp_level 4;` / brotli quality 4–5 gets ~95% of the ratio of level 6 at roughly half the CPU, and set `gzip_min_length 1000;` so tiny responses skip the compressor.
+
+### Switch the JSON Encoder to orjson
+
+Multiple instances mean Socket.IO events travel through Redis, and every one of them is encoded and decoded as JSON. That encoding was the single largest cost measured on the workers handling live updates in clustered deployments. Switching the application to [orjson](https://pypi.org/project/orjson/), a Rust implementation several times faster than Python's standard library, is a one-line change:
+
+```
+ENABLE_ORJSON=True
+```
+
+It covers HTTP request and response bodies, saving and opening chats (a whole conversation is encoded on every save and decoded again on every open), reading settings, the requests sent to model providers, upstream provider responses including the per-chunk parsing of streamed completions and the Socket.IO and Redis payloads. `orjson` already ships as a dependency, so nothing needs installing, and the setting is read once at startup. It is opt-in only because orjson is stricter about what it accepts, and anything it rejects falls back to the standard library automatically, so enabling it cannot turn a working payload into an error. Available from v0.11.0.
+
+For the full breakdown of what it covers, the two behaviour differences worth knowing and when it is not worth enabling, see [Multi-Replica → Use the Faster JSON Encoder](/troubleshooting/multi-replica#use-the-faster-json-encoder).
+
+### Speed Up Name Lookups
+
+Hostname lookups queue behind each other under load, delaying the request each one belongs to. The c-ares resolver removes that queue:
+
+```
+AIOHTTP_CLIENT_ASYNC_DNS_RESOLVER=True
+```
+
+It is opt-in because c-ares reads fewer name sources than the operating system does. See [DNS Resolver](../../troubleshooting/performance.md#dns-resolver) for the trade-off and what to test afterwards.
 
 ---
 
-## Step 4 — Switch to an External Vector Database
+## Step 4: Switch to an External Vector Database
 
 **When:** You run more than one Uvicorn worker (`UVICORN_WORKERS > 1`) or more than one replica. **This is not optional.**
 
 :::danger Default ChromaDB Will Crash in Multi-Process Setups
 
-The default vector database (ChromaDB) uses a local `PersistentClient` backed by **SQLite**. SQLite connections are **not fork-safe** — when uvicorn forks multiple workers, each process inherits the same database connection. Concurrent writes (e.g., during document uploads) cause **instant worker death**:
+The default vector database (ChromaDB) uses a local `PersistentClient` backed by **SQLite**. SQLite connections are **not fork-safe**: when uvicorn forks multiple workers, each process inherits the same database connection. Concurrent writes (e.g., during document uploads) cause **instant worker death**:
 
 ```
 save_docs_to_vector_db:1619 - adding to collection file-id
@@ -180,11 +260,11 @@ VECTOR_DB=pgvector
 
 | Vector DB | Best For | Configuration |
 |---|---|---|
-| **PGVector** | Teams already using PostgreSQL — reuses your existing database infrastructure | `VECTOR_DB=pgvector` + `PGVECTOR_DB_URL=postgresql://...` |
-| **MariaDB Vector** | HNSW-based vector search - performance comparable to other implementations, with stronger scalability under multi-connection workloads | `VECTOR_DB=mariadb-vector` + `MARIADB_VECTOR_DB_URL=mariadb+mariadbconnector://...` |
+| **PGVector** | Teams already using PostgreSQL, reuses your existing database infrastructure | `VECTOR_DB=pgvector` + `PGVECTOR_DB_URL=postgresql://...` |
+| **MariaDB Vector** | HNSW-based vector search, performance comparable to other implementations, with stronger scalability under multi-connection workloads | `VECTOR_DB=mariadb-vector` + `MARIADB_VECTOR_DB_URL=mariadb+mariadbconnector://...` |
 | **Milvus** | Large-scale self-hosted deployments with high query throughput; supports multitenancy for per-user isolation | `VECTOR_DB=milvus` + `MILVUS_URI=http://milvus-host:19530` |
 | **Qdrant** | Self-hosted deployments needing efficient filtering and metadata search; supports multitenancy | `VECTOR_DB=qdrant` + `QDRANT_URI=http://qdrant-host:6333` |
-| **Pinecone** | Fully managed cloud service — zero infrastructure to maintain, pay-per-use | `VECTOR_DB=pinecone` + `PINECONE_API_KEY=...` |
+| **Pinecone** | Fully managed cloud service, zero infrastructure to maintain, pay-per-use | `VECTOR_DB=pinecone` + `PINECONE_API_KEY=...` |
 | **ChromaDB (HTTP mode)** | Keeping ChromaDB but making it multi-process safe by running it as a separate server | `VECTOR_DB=chroma` + `CHROMA_HTTP_HOST=chroma-host` + `CHROMA_HTTP_PORT=8000` |
 
 :::note
@@ -194,14 +274,14 @@ Only PGVector and ChromaDB will be consistently maintained by the Open WebUI tea
 :::
 
 :::tip
-**PGVector** is the simplest choice if you're already running PostgreSQL for the main database — it adds vector search to the database you already have, with no additional infrastructure.
+**PGVector** is the simplest choice if you're already running PostgreSQL for the main database. It adds vector search to the database you already have, with no additional infrastructure.
 
 For maximum scalability in self-hosted environments, **Milvus** and **Qdrant** both support **multitenancy mode** (`ENABLE_MILVUS_MULTITENANCY_MODE=True` / `ENABLE_QDRANT_MULTITENANCY_MODE=True`), which provides better resource sharing at scale.
 :::
 
 ---
 
-## Step 5 — Share File Storage Across Instances
+## Step 5: Share File Storage Across Instances
 
 **When:** You're running multiple instances that need to share uploaded files, generated images, and other user data.
 
@@ -209,7 +289,7 @@ By default, Open WebUI stores uploaded files on the local filesystem under `DATA
 
 ### Do I need cloud storage (S3)?
 
-**Not necessarily.** Open WebUI stores all uploaded files with **UUID-based unique filenames**. Multiple processes and replicas only ever **create new files** or **read existing ones** — they never write to the same file simultaneously. This means a simple **shared filesystem mount** works correctly without write conflicts under normal operation. Though you have to ensure, that all workers/replicas have access to the very same shared DATA_DIR directory in a shared storage.
+**Not necessarily.** Open WebUI stores all uploaded files with **UUID-based unique filenames**. Multiple processes and replicas only ever **create new files** or **read existing ones**: they never write to the same file simultaneously. This means a simple **shared filesystem mount** works correctly without write conflicts under normal operation. Though you have to ensure, that all workers/replicas have access to the very same shared DATA_DIR directory in a shared storage.
 
 **Your options:**
 
@@ -224,7 +304,7 @@ By default, Open WebUI stores uploaded files on the local filesystem under `DATA
 
 ### Option A: Shared Filesystem (Simplest)
 
-No configuration changes needed — just ensure all instances mount the same directory:
+No configuration changes needed, just ensure all instances mount the same directory:
 
 **Example Kubernetes:**
 ```yaml
@@ -243,6 +323,8 @@ volumes:
 :::warning
 Do **not** store the SQLite database on a network filesystem. SQLite's file locking does not work reliably over NFS. This is another reason to switch to PostgreSQL (Step 1) before scaling to multiple instances.
 :::
+
+Once your data directory is shared, lock down what can land in it: see [File upload limits](/getting-started/advanced-topics/hardening#file-upload-limits) for size, count, and extension caps, and [Data directory](/getting-started/advanced-topics/hardening#data-directory) for filesystem-permission and backup guidance.
 
 ### Option B: Cloud Object Storage
 
@@ -266,7 +348,7 @@ Each provider has its own set of environment variables for credentials and bucke
 
 ---
 
-## Step 6 — Fix Content Extraction & Embeddings
+## Step 6: Fix Content Extraction & Embeddings
 
 **When:** You process documents regularly (RAG, knowledge bases) and are running in production.
 
@@ -283,6 +365,8 @@ CONTENT_EXTRACTION_ENGINE=tika
 TIKA_SERVER_URL=http://tika:9998
 ```
 
+If Tika or Docling don't cover your document types, or you need to route different file types to different backends, run your own service instead and set `CONTENT_EXTRACTION_ENGINE=external`. See [External Document Extraction](/features/chat-conversations/rag/document-extraction/external) for the HTTP contract.
+
 2. **Switch the embedding engine** to an external provider:
 
 ```
@@ -296,10 +380,11 @@ RAG_EMBEDDING_ENGINE=ollama
 - The default content extractor (pypdf) has unavoidable **known memory leaks** that cause your Open WebUI process to grow in memory continuously. An external extractor (Tika, Docling) runs in its own process/container, isolating these leaks.
 - The default SentenceTransformers embedding model loads ~500MB per worker process. With 8 workers, that's 4GB of RAM just for embeddings. External embedding eliminates this.
 - For detailed guidance and configuration options, see [Content Extraction Engine](/troubleshooting/performance#content-extraction-engine) and [Embedding Engine](/troubleshooting/performance#embedding-engine) in the Performance guide.
+- External Tika, Docling, or embedding endpoints become a new outbound destination from Open WebUI. Reach them over the internal network only, and review the [Network and outbound requests](/getting-started/advanced-topics/hardening#network-and-outbound-requests) section of the Hardening guide for SSRF defaults (`AIOHTTP_CLIENT_ALLOW_REDIRECTS=false`, `WEB_FETCH_FILTER_LIST`) so a misconfigured extractor URL cannot be redirected onto an internal address.
 
 ---
 
-## Step 7 — Add Observability
+## Step 7: Add Observability
 
 **When:** You want to monitor performance, troubleshoot issues, and understand how your deployment is behaving at scale.
 
@@ -312,7 +397,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4317
 
 This gives you visibility into request latency, database query performance, error rates, and more.
 
-For the full setup guide, see [OpenTelemetry Monitoring](/reference/monitoring/otel). For application-level log configuration (log levels, debug output), see [Logging Open WebUI](/getting-started/advanced-topics/logging).
+For the full setup guide, see [OpenTelemetry Monitoring](/reference/monitoring/otel). For application-level log configuration (log levels, debug output), see [Logging Open WebUI](/getting-started/advanced-topics/logging). For structured-logging defaults aimed at log aggregators, plus the dedicated audit log that records auth events, admin actions, and data access, see [Observability](/getting-started/advanced-topics/hardening#observability) and [Audit Logging](/getting-started/advanced-topics/hardening#audit-logging) in the Hardening guide.
 
 ---
 
@@ -320,27 +405,42 @@ For the full setup guide, see [OpenTelemetry Monitoring](/reference/monitoring/o
 
 Here's what a production-ready scaled deployment typically looks like:
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   Load Balancer                     │
-│              (Nginx, HAProxy, Cloud LB)             │
-└──────────┬──────────┬──────────┬────────────────────┘
-           │          │          │
-     ┌─────▼──┐ ┌─────▼──┐ ┌────▼───┐
-     │ WebUI  │ │ WebUI  │ │ WebUI  │   ← Stateless containers
-     │ Pod 1  │ │ Pod 2  │ │ Pod N  │
-     └───┬────┘ └───┬────┘ └───┬────┘
-         │          │          │
-    ┌────▼──────────▼──────────▼────┐
-    │         PostgreSQL            │   ← Shared database
-    │     (+ PGVector for RAG)      │   ← Vector DB (or other Vector DB)
-    └───────────────────────────────┘
-    ┌───────────────────────────────┐
-    │           Redis               │   ← Shared state & websockets
-    └───────────────────────────────┘
-    ┌───────────────────────────────┐
-    │  Shared Storage (NFS or S3)   │   ← Shared file storage
-    └───────────────────────────────┘
+```mermaid
+flowchart TD
+    %% Main Flow
+    LB["Load Balancer<br/>(Nginx, HAProxy, Cloud LB)"]
+
+    subgraph Pods ["Stateless Containers"]
+        direction LR
+        P1["WebUI<br/>Pod 1"]
+        P2["WebUI<br/>Pod 2"]
+        PN["WebUI<br/>Pod N"]
+    end
+
+    subgraph Shared ["Shared Infrastructure"]
+        direction LR
+        DB[("PostgreSQL<br/>(+ PGVector for RAG)")]
+        Redis{{"Redis"}}
+        Storage[/"Shared Storage<br/>(NFS or S3)"/]
+    end
+
+    %% Annotations
+    DBNote["Shared database<br/>+ Vector DB"]
+    RedisNote["Shared state & websockets"]
+    StoreNote["Shared file storage"]
+
+    %% Connections
+    LB --> P1
+    LB --> P2
+    LB --> PN
+    P1 --> Shared
+    P2 --> Shared
+    PN --> Shared
+
+    %% Alignment Links
+    DB -.-> DBNote
+    Redis -.-> RedisNote
+    Storage -.-> StoreNote
 ```
 
 **Running into issues?** The [Scaling & HA Troubleshooting](/troubleshooting/multi-replica) guide covers common problems (login loops, WebSocket failures, database locks, worker crashes) and their solutions. For performance tuning at scale, see [Optimization, Performance & RAM Usage](/troubleshooting/performance).
@@ -380,7 +480,51 @@ UVICORN_WORKERS=1
 
 # Migrations (set to false on all but one instance)
 ENABLE_DB_MIGRATIONS=false
+
+# Concurrency & DB write throttling (REQUIRED at scale — see note below)
+THREAD_POOL_SIZE=2000
+DATABASE_USER_ACTIVE_STATUS_UPDATE_INTERVAL=120
+
+# HTTP compression — disable in the app IF your LB/ingress/CDN compresses
+# responses instead (saves ~3-4% CPU on every worker; see Step 3)
+# ENABLE_COMPRESSION_MIDDLEWARE=false
+
+# Websocket heartbeats: one message per open tab every 30s by default.
+# Raising it cuts idle traffic; a dropped user lingers in the active count
+# WEBSOCKET_HEARTBEAT_INTERVAL=60
+
+# Expiry on stream entries left behind by workers killed mid-response.
+# Finished responses are deleted immediately; 0 keeps orphans forever
+# REDIS_RESPONSE_STREAM_TTL=3600
+
+# Faster JSON encoder (v0.11.0+): biggest win is Socket.IO/Redis event
+# encoding in clustered deployments; see Step 3
+ENABLE_ORJSON=True
+
+# Faster name lookups: removes the queueing delay in front of every outbound
+# request. Verify your names still resolve after enabling it; see Step 3
+AIOHTTP_CLIENT_ASYNC_DNS_RESOLVER=True
 ```
+
+:::warning Two settings people forget, and then their scaled deployment stalls
+- **`THREAD_POOL_SIZE=2000`**: Open WebUI offloads blocking work (DB calls, file I/O, sync handlers) to a thread pool whose default concurrency ceiling is only **40**. At scale, once 40 blocking operations are in flight every further request **queues**, and the whole app appears to freeze even though CPU/RAM look fine. `2000` is a *lower* bound for large instances; it is a concurrency ceiling, **not** a CPU/thread count, so a high value is not a contention risk. Never lower it. (The only exception is genuinely tiny hardware, which is not a "scaled deployment".)
+- **`DATABASE_USER_ACTIVE_STATUS_UPDATE_INTERVAL`**: presence tracking writes each user's `last_active_at` to the database. The default throttles that to one write per user per 60 seconds, so the flood of tiny write transactions is already avoided and there is usually nothing to change. `120` is the value to use if you set one: it halves the writes again and still leaves a full minute of headroom inside the 180 second window that active presence counts users over. Anything at or above 180 makes users drop out of the count between writes. Setting it to `0` turns throttling off and returns to roughly one `UPDATE` plus `COMMIT` per authenticated request, which saturates the connection pool for no functional gain.
+
+Both are read once at startup and are not configurable from the Admin UI. See [Performance → Database Optimization](/troubleshooting/performance#-database-optimization) and [Performance → High-Concurrency](/troubleshooting/performance#-high-concurrency--network-optimization).
+:::
+
+### Security defaults to revisit at scale
+
+A few defaults that are reasonable for single-user evaluation become less so once you put the deployment behind SSO and serve real users. The full discussion lives in the [Hardening guide](/getting-started/advanced-topics/hardening); the items most often missed in enterprise rollouts:
+
+- **Disable external profile image redirects**: `ENABLE_PROFILE_IMAGE_URL_FORWARDING=false`. By default the user/model profile-image endpoints `302` to whatever external URL `profile_image_url` holds, which makes every browser viewing an avatar leak its IP, User-Agent, and Referer to that origin. Set this to `false` for shared deployments **unless** your IdP supplies avatars only as `data:` URIs (which Open WebUI persists locally and is unaffected) or you have a deliberate reason to keep IdP-hosted avatars rendering, e.g. your `OAUTH_PICTURE_CLAIM` returns Google/Gravatar URLs and you want them to display. See [SSO configuration](/features/authentication-access/auth/sso) for the matching OAuth picture-claim settings.
+- **Set `WEBUI_SECRET_KEY` and `OAUTH_SESSION_TOKEN_ENCRYPTION_KEY`** to the same value across every replica. Without this, sessions break on rolling restart and OAuth tokens written by one pod cannot be decrypted by another.
+- **Lower `JWT_EXPIRES_IN`** from the four-week default if your deployment carries sensitive data, especially if Redis is not yet in place to revoke tokens on signout. See [Token Revocation](/getting-started/advanced-topics/hardening#token-revocation).
+- **Disable `ENABLE_OAUTH_ID_TOKEN_COOKIE`** (`false`) once all clients are on the new server-side session model. The legacy cookie carried the raw IdP id_token to the browser; the new model keeps it server-side.
+
+These are configuration defaults, not new features: the existing knobs simply matter more once a deployment has multiple users and a real identity provider in front of it.
+
+Beyond this short list, the Hardening guide groups the same concerns by topic so you can work through them step by step: [Network Placement](/getting-started/advanced-topics/hardening#network-placement), [Authentication and Signup](/getting-started/advanced-topics/hardening#authentication-and-signup), [Session and Cookie Security](/getting-started/advanced-topics/hardening#session-and-cookie-security), [Security Headers](/getting-started/advanced-topics/hardening#security-headers), [Access Control](/getting-started/advanced-topics/hardening#access-control), [Tools, Functions, and Pipelines](/getting-started/advanced-topics/hardening#tools-functions-and-pipelines), and the [Security-First Deployment](/getting-started/advanced-topics/hardening#security-first-deployment) checklist at the end.
 
 ---
 
@@ -394,12 +538,12 @@ ENABLE_DB_MIGRATIONS=false
 | Multiple instances / HA | **Required** | **Required** | **Required** | **Strongly Recommended** | **Strongly Recommended** | **Optional** (NFS or S3) |
 | Large scale (1000+ users) | **Required** | **Required** | **Required** | **Strongly Recommended** | **Strongly Recommended** | **Optional** (NFS or S3) |
 
-†Without Redis, signing out and password changes do **not** revoke tokens — they remain valid until `JWT_EXPIRES_IN` expires (default: 4 weeks). For production deployments handling sensitive data, Redis is recommended for proper token revocation. See [Token Revocation](/getting-started/advanced-topics/hardening#token-revocation).
+†Without Redis, signing out and password changes do **not** revoke tokens: they remain valid until `JWT_EXPIRES_IN` expires (default: 4 weeks). For production deployments handling sensitive data, Redis is recommended for proper token revocation. See [Token Revocation](/getting-started/advanced-topics/hardening#token-revocation).
 
 :::note About "External Vector DB"
-The default ChromaDB uses a local SQLite backend that crashes under multi-process access. "External Vector DB" means either a client-server database (PGVector, Milvus, Qdrant, Pinecone) or ChromaDB running as a separate HTTP server. See [Step 4](#step-4--switch-to-an-external-vector-database) for details.
+The default ChromaDB uses a local SQLite backend that crashes under multi-process access. "External Vector DB" means either a client-server database (PGVector, Milvus, Qdrant, Pinecone) or ChromaDB running as a separate HTTP server. See [Step 4](#step-4-switch-to-an-external-vector-database) for details.
 :::
 
 :::note About "Shared Storage"
-For multiple instances, all replicas need access to the same uploaded files. A **shared filesystem mount** (local drive, NFS, EFS, CephFS) is sufficient — cloud object storage (S3/GCS/Azure) is a scalable alternative, but not a requirement. Files use UUID-based unique names, so there are no write conflicts. See [Step 5](#step-5--share-file-storage-across-instances) for details.
+For multiple instances, all replicas need access to the same uploaded files. A **shared filesystem mount** (local drive, NFS, EFS, CephFS) is sufficient. Cloud object storage (S3/GCS/Azure) is a scalable alternative, but not a requirement. Files use UUID-based unique names, so there are no write conflicts. See [Step 5](#step-5-share-file-storage-across-instances) for details.
 :::

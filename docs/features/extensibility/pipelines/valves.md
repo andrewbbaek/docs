@@ -5,6 +5,15 @@ title: "Valves"
 
 ## Valves
 
+:::danger Pipelines are legacy, do not use for new deployments
+**Pipelines are outdated and legacy, and are no longer recommended.** A Pipeline can run as a **pipe** or as a **filter**; both forms now have in-process replacements that support [Valves](/features/extensibility/plugin/development/valves) too, are built in, and need no separate worker container:
+
+- Pipeline **pipe** (custom provider, RAG, request routing) → [Pipe Function](/features/extensibility/plugin/functions/pipe)
+- Pipeline **filter** (message pre/post-processing) → [Filter Function](/features/extensibility/plugin/functions/filter)
+
+This page is kept for reference and existing deployments only.
+:::
+
 `Valves` (see the dedicated [Valves & UserValves](/features/extensibility/plugin/development/valves) page) can also be set for `Pipeline`. In short, `Valves` are input variables that are set per pipeline.
 
 `Valves` are set as a subclass of the `Pipeline` class, and initialized as part of the `__init__` method of the `Pipeline` class.
@@ -17,7 +26,7 @@ When adding valves to your pipeline, include a way to ensure that valves can be 
 self.valves = self.Valves(
     **{
         "LLAMAINDEX_OLLAMA_BASE_URL": os.getenv("LLAMAINDEX_OLLAMA_BASE_URL", "http://localhost:11434"),
-        "LLAMAINDEX_MODEL_NAME": os.getenv("LLAMAINDEX_MODEL_NAME", "llama3"),
+        "LLAMAINDEX_MODEL_NAME": os.getenv("LLAMAINDEX_MODEL_NAME", "qwen3.6:27b"),
         "LLAMAINDEX_EMBEDDING_MODEL_NAME": os.getenv("LLAMAINDEX_EMBEDDING_MODEL_NAME", "nomic-embed-text"),
     }
 )

@@ -31,8 +31,8 @@ However, if you encounter connection issues, the most common cause is a network 
 
 To manage your Ollama instance in Open WebUI, follow these steps:
 
-1. Go to **Admin Settings** in Open WebUI.
-2. Navigate to **Connections > Ollama > Manage** (click the wrench icon).
+1. Go to **Settings > Admin > Connections** in Open WebUI.
+2. Find your instance under **Manage Ollama API Connections** and click **Manage** (the download icon).
    From here, you can download models, configure settings, and manage your connection to Ollama.
 
 ### Connection Tips
@@ -44,7 +44,7 @@ To manage your Ollama instance in Open WebUI, follow these steps:
 ### Advanced Configuration
 
 *   **Prefix ID**: If you have multiple Ollama instances serving the same model names, use a prefix (e.g., `remote/`) to distinguish them.
-*   **Model IDs (Filter)**: Make specific models visible by listing them here (whitelist). Leave empty to show all.
+*   **Model IDs (Filter)**: Make specific models visible by listing them here (whitelist). Leave empty to show all. Each ID goes on the list once: spaces around what you type are stripped off, and an ID that is already listed is refused with **Model ID is already added**.
 
 :::tip Connection Timeout Configuration
 
@@ -77,6 +77,14 @@ This method is perfect if you want to skip navigating through the Admin Settings
 
 ---
 
+## Unloading Loaded Models
+
+Open WebUI shows a green "Loaded" indicator next to any Ollama model that is currently kept warm by the runtime, and admins see an **Eject** button on the model row to unload it without restarting the server. Behind the scenes, Open WebUI calls `POST /api/models/unload` (admin-only), which forwards a `keep_alive=0` generate call to every Ollama node serving that model.
+
+This is useful for freeing GPU/VRAM when juggling multiple large models, or for forcing a fresh load after pulling a new revision. Trying to unload a model that the connected provider does not support unloading returns an error rather than silently failing.
+
+---
+
 ## Using Reasoning / Thinking Models
 
 If you're using reasoning models like **DeepSeek-R1** or **Qwen3** that output thinking/reasoning content in `<think>...</think>` tags, you'll need to configure Ollama with a **reasoning parser** for proper display.
@@ -94,6 +102,27 @@ This ensures that thinking blocks are properly separated from the final answer a
 :::tip
 The `deepseek_r1` parser works for most reasoning models, including Qwen3. If you encounter issues, see our [Reasoning & Thinking Models Guide](/features/chat-conversations/chat-features/reasoning-models) for alternative parsers and detailed troubleshooting steps.
 :::
+
+---
+
+## Context Length (`num_ctx`) and `OLLAMA_CONTEXT_LENGTH`
+
+How much of your conversation a model actually sees is set by the **context length**, and for Ollama it can come from two places, one of which quietly overrides the other:
+
+- **`OLLAMA_CONTEXT_LENGTH`** is set on the **Ollama server** and is the default context length Ollama uses for a model. Ollama itself defaults this to a small value (historically `2048`, `4096` on newer builds).
+- **`num_ctx`** is an **Open WebUI advanced parameter** (Chat Controls > Advanced Parameters, or per model in the model editor). It is **unset by default**, so out of the box Ollama's `OLLAMA_CONTEXT_LENGTH` applies.
+
+:::warning `num_ctx` overrides `OLLAMA_CONTEXT_LENGTH`
+If `num_ctx` is set anywhere in Open WebUI (a model preset's parameters or the chat's Advanced Parameters), Open WebUI sends it to Ollama on every request, and a per-request `num_ctx` **overrides** the server's `OLLAMA_CONTEXT_LENGTH`. Toggling the `num_ctx` control on **pre-fills it with `2048`**, which is very small, so it is easy to cap a model at 2048 tokens without realizing it, even after raising `OLLAMA_CONTEXT_LENGTH` on the Ollama side.
+:::
+
+A context that is too small silently truncates the prompt. This is most visible with **Native function calling**, where tool schemas are injected into the prompt: at `2048` tokens the model can run out of room and return a **blank response**, or emit a raw tool-call JSON blob instead of actually calling the tool. Raising the context resolves it.
+
+**What to do:**
+
+- To set a default for all Ollama models, set `OLLAMA_CONTEXT_LENGTH` on the **Ollama server** and **leave `num_ctx` unset** in Open WebUI so it is not overridden.
+- To set it per model or per chat, set `num_ctx` to a realistic value for the model (for example `8192`, `16384` or the model's maximum), not the `2048` default. Remember it overrides `OLLAMA_CONTEXT_LENGTH`.
+- A larger context uses more VRAM and RAM, so size it to what your hardware can hold.
 
 ---
 

@@ -1,9 +1,21 @@
 ---
 sidebar_position: 100
-title: "🚀 Getting Started"
+title: "Getting Started"
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
 # Getting Started with Open WebUI
+
+<ThemedImage
+  alt="Getting Started with Open WebUI: install, connect a provider, start chatting, then expand into app install, agents, sharing, and updates"
+  sources={{
+    light: useBaseUrl('/images/banners/getting-started-light.svg'),
+    dark: useBaseUrl('/images/banners/getting-started-dark.svg'),
+  }}
+  style={{ width: '100%', margin: '0.25rem 0 1.75rem' }}
+/>
 
 **From zero to your first AI conversation in under five minutes.**
 
@@ -15,14 +27,14 @@ Open WebUI runs anywhere (Docker, Kubernetes, pip, bare metal) and connects to O
 
 **Install Open WebUI, connect a model, and start chatting.**
 
-Everything you need for a working setup. Choose Docker for the fastest path, Python for lightweight installs, or Kubernetes for production orchestration. Each guide includes connecting your first model provider.
+Everything you need for a working setup. Choose Docker for the fastest path or Python for lightweight installs; Kubernetes and the other methods are one link away. Each guide includes connecting your first model provider.
 
 | | |
 | :--- | :--- |
 | 🐳 **Docker** | One-command deploy, the officially recommended path |
 | 📦 **Python (pip / uv)** | Lightweight install for low-resource or manual setups |
-| ☸️ **Kubernetes (Helm)** | Production-ready orchestration with scaling |
-| 🖥️ **Desktop app** | Native app (experimental), no Docker required |
+| ☸️ **Kubernetes (Helm)** | Production-ready orchestration with scaling, under More install methods |
+| 🖥️ **Desktop app** | Native app, no Docker required |
 | 🔌 **Connect a provider** | Ollama, OpenAI, Anthropic, llama.cpp, vLLM, and more |
 | ⚙️ **Understanding settings** | Learn how Admin Settings and User Settings work together |
 
@@ -30,19 +42,37 @@ Everything you need for a working setup. Choose Docker for the fastest path, Pyt
 
 ---
 
-## Essentials for Open WebUI
+## 📱 Open WebUI as an App
 
-**Installed and chatting — now what?**
+**Already running Open WebUI? Install it as an app on any device.**
 
-Five short sections that cover the things every new user eventually wishes they'd known on day one: what plugins are and how to install them, why long chats eventually error out (and how to fix it with a filter), the "invisible" Task Model that powers titles/autocomplete, getting started with RAG over your own documents, and turning on Native tool calling.
+Open WebUI is a Progressive Web App (PWA). Add it to your phone's home screen, your desktop taskbar, or your dock. No separate download required. Get a full-screen, native-feeling experience from any browser.
 
 | | |
 | :--- | :--- |
-| 🧩 **Plugins** | Tools, Pipes, Filters, Actions — the extensibility story |
+| 📱 **iPhone / iPad** | Share → Add to Home Screen |
+| 🤖 **Android** | Menu → Install app |
+| 🖥️ **Chrome / Edge** | Address bar install icon |
+
+[**Install as an app →**](/getting-started/open-webui-as-app)
+
+---
+
+## Essentials for Open WebUI
+
+**Installed and chatting. Now what?**
+
+Short sections that cover the things every new user eventually wishes they'd known on day one: what plugins are and how to install them, why long chats eventually error out (and how Context Compaction handles it), the "invisible" Task Model that powers titles/autocomplete, getting started with RAG over your own documents, web search, Native tool calling and Open Terminal.
+
+| | |
+| :--- | :--- |
+| 🧩 **Plugins** | Tools, Pipes, Filters, Actions: the extensibility story |
 | 🧠 **Context management** | Why long chats hit a wall and how to handle it |
 | 🤖 **Task models** | Keep titles, tags, and autocomplete off your main model |
 | 📚 **Basic RAG** | Chatting with your own documents |
 | 🔧 **Tool calling** | Native mode + first Tools to install |
+| 🌐 **Web search** | Pick a provider and the model searches when it needs to |
+| 🖥️ **Open Terminal** | A sandboxed shell the model can build and run things in |
 
 [**Read the essentials →**](/getting-started/essentials)
 

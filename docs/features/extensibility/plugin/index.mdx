@@ -3,21 +3,35 @@ sidebar_position: 100
 title: "Tools & Functions (Plugins)"
 ---
 
-# 🛠️ Tools & Functions
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+# Tools & Functions
+
+<ThemedImage
+  alt="Open WebUI plugin types: Pipe, Tool, Action, Event, Filter and MCP orbiting the Open WebUI logo"
+  sources={{
+    light: useBaseUrl('/images/banners/community-light.svg'),
+    dark: useBaseUrl('/images/banners/community-dark.svg'),
+  }}
+  style={{ width: '100%', margin: '0.25rem 0 1.75rem' }}
+/>
 
 :::danger ⚠️ Critical Security Warning
 
-**Tools, Functions, Pipes, Filters, and Pipelines execute arbitrary Python code on your server.** This is by design—it's what makes them powerful. However, this also means:
+**Tools, Functions, Pipes, Filters, and Pipelines execute arbitrary Python code on your server.** This is by design: it's what makes them powerful. However, this also means:
 
 1. **Only install from trusted sources.** Never import Tools or Functions from unknown or untrusted sources. Malicious code can compromise your entire system.
 
-2. **Review code before importing.** Before installing any community Tool or Function, review its source code. If you don't understand what it does, don't install it.
+2. **Featured does not mean vetted.** A plugin being highlighted, featured, popular, or listed on the [Open WebUI Community site](https://openwebui.com/) is **not** an endorsement and does **not** mean its code was reviewed for security or quality. Listings are community-submitted and unaudited. See [Community Plugins](/features/extensibility/community).
 
-3. **Protect your data directory.** The `data` directory (mounted at `/app/backend/data` in Docker) contains your database, configurations, and cached Tools/Functions. If an attacker gains write access to this directory, they can inject malicious code that will execute on your server.
+3. **Review code before importing.** Before installing any community Tool or Function, review its source code. If you don't understand what it does, don't install it.
 
-4. **Restrict Workspace access.** Only trusted administrators should have permission to create, import, or modify Tools and Functions. Regular users should **not** have Workspace access unless explicitly required.
+4. **Protect your data directory.** The `data` directory (mounted at `/app/backend/data` in Docker) contains your database, configurations, and cached Tools/Functions. If an attacker gains write access to this directory, they can inject malicious code that will execute on your server.
 
-5. **Audit installed plugins regularly.** Periodically review the Tools and Functions installed in your instance via **Workspace → Tools** and **Admin Panel → Functions**.
+5. **Restrict Workspace access.** Only trusted administrators should have permission to create, import, or modify Tools and Functions. Regular users should **not** have Workspace access unless explicitly required.
+
+6. **Audit installed plugins regularly.** Periodically review the Tools and Functions installed in your instance via **Workspace > Tools** and **Admin Panel > Functions**.
 
 **What could go wrong?** A malicious Tool or Function could exfiltrate data, install malware, mine cryptocurrency, pivot to other systems on your network, or corrupt your instance.
 
@@ -26,24 +40,22 @@ title: "Tools & Functions (Plugins)"
 ## TL;DR
 
 - **Tools** extend the abilities of LLMs, allowing them to collect real-world, real-time data like weather, stock prices, etc.
-- **Functions** extend the capabilities of the Open WebUI itself, enabling you to add new AI model support (like Anthropic or Vertex AI) or improve usability (like creating custom buttons or filters).
-- **Pipelines** are more for advanced users who want to transform Open WebUI features into API-compatible workflows—mainly for offloading heavy processing.
+- **Functions** extend the capabilities of the Open WebUI itself, enabling you to add new AI model support (like Vertex AI) or improve usability (like creating custom buttons or filters).
+- **Pipelines** are more for advanced users who want to transform Open WebUI features into API-compatible workflows, mainly for offloading heavy processing.
 
 Getting started with Tools and Functions is easy because everything’s already built into the core system! You just **click a button** and **import these features directly from the community**, so there’s no coding or deep technical work required.
 
-:::tip Plugins can do *way* more than you think — and way more than is shown here
-The pages that follow document every capability the plugin system exposes: every class shape, every lifecycle method, every `__arg__`, every event type, every return contract, every hook that touches the pipeline. That surface is *complete*.
+:::tip The plugin system is more capable than these docs can show
+The pages that follow document the full plugin API surface: class shapes, lifecycle methods, arguments, event types, return contracts and every hook into the pipeline. The reference is complete.
 
-What's **not** documented — because it can't be — is **what to use it for**. The ideas. The creative combinations. The "huh, I didn't realize you could do that with just an inlet filter and a `saveState` bridge" moments. Those live in the community's heads, not in these docs.
+What these docs cannot cover is the range of things people actually build with it. Community plugins have been used for live-streaming HTML dashboards, per-user cost enforcement, context managers that summarize and replace older turns, bidirectional interactive UIs, in-chat MCP apps, forensic watermarking and much more.
 
-These are **developer docs**. The primitives are all here; the creativity is on you (and on the thousands of community plugins that have already stretched the system into shapes nobody on the core team predicted — live-streaming HTML dashboards, per-user cost enforcement, summarize-and-replace context managers, bidirectional interactive UIs, entire embedded design systems, in-chat MCP apps, forensic watermarking, and so on).
-
-If you're weighing a feature request and thinking *"this needs a core change,"* ask *"can this be a plugin?"* first. Almost always the answer is yes.
+If you are considering a feature request and thinking "this needs a core change," first ask whether it can be done as a plugin. The plugin system has access to the full request/response lifecycle, persistent state, user metadata, the event emitter and the admin-configurable valves system. In practice, most features that feel like they need core changes (custom authentication logic, per-user rate limiting, response post-processing, provider-specific routing, cost tracking, context management strategies) can be implemented entirely as a plugin without touching the core codebase. Filing a plugin on the community site also means other users benefit immediately, without waiting for a release cycle.
 :::
 
 ## What are "Tools" and "Functions"?
 
-Let's start by thinking of **Open WebUI** as a "base" software that can do many tasks related to using Large Language Models (LLMs). But sometimes, you need extra features or abilities that don't come *out of the box*—this is where **tools** and **functions** come into play.
+Let's start by thinking of **Open WebUI** as a "base" software that can do many tasks related to using Large Language Models (LLMs). But sometimes, you need extra features or abilities that don't come *out of the box*. This is where **tools** and **functions** come into play.
 
 ### Tools
 
@@ -74,7 +86,7 @@ While **tools** are used by the AI during a conversation, **functions** help ext
 
 For instance, maybe you want to:
 
-1. Add a new AI model like **Anthropic** to the WebUI.
+1. Add a new AI model provider like **Vertex AI** to the WebUI.
 2. Create a custom button in your toolbar that performs a frequently used command.
 3. Implement a better **filter** function that catches inappropriate or **spammy messages** from the incoming text.
 
@@ -97,7 +109,7 @@ Both are designed to be **pluggable**, meaning you can easily import them into y
 
 ## What are Pipelines?
 
-And then, we have **Pipelines**… Here’s where things start to sound pretty technical—but don’t despair.
+And then, we have **Pipelines**… Here’s where things start to sound pretty technical, but don’t despair.
 
 **Pipelines** are part of an Open WebUI initiative focused on making every piece of the WebUI **inter-operable with OpenAI’s API system**. Essentially, they extend what both **Tools** and **Functions** can already do, but now with even more flexibility. They allow you to turn features into OpenAI API-compatible formats. 🧠
 

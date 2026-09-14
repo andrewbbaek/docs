@@ -1,6 +1,6 @@
 ---
 sidebar_position: 4
-title: "💾 Import & Export"
+title: "Import & Export"
 ---
 
 Open WebUI provides tools to backup your chat history and restore it later, or migrate conversations from other platforms.
@@ -32,6 +32,12 @@ Click the **Import Chats** button and select a JSON file to restore conversation
 - **ChatGPT exports**: Conversations exported from OpenAI's ChatGPT (auto-detected and converted)
 - **Custom JSON files**: Any JSON file that follows the expected structure documented below
 
+:::info Import permission also covers forking
+
+**Allow Chat Import** gates [forking a chat](/features/chat-conversations/chat-features/) as well, which copies an existing conversation into a new one. Where it is not granted, the **Import Chats** row here, the **Fork chat** action under an assistant response and the `/fork` entry in the chat input's `/` menu are all left out of the interface rather than shown and refused. Admins are always exempt. See [Permissions](/features/authentication-access/rbac/permissions#3-chat-permissions).
+
+:::
+
 ### Import Behavior
 
 - Imported chats are added to your existing conversations (they don't replace them)
@@ -51,7 +57,7 @@ Each object in the array should have a `chat` key containing the conversation da
   {
     "chat": {
       "title": "My Conversation",
-      "models": ["llama3.2"],
+      "models": ["qwen3.6:27b"],
       "history": {
         "currentId": "message-id-2",
         "messages": {
@@ -69,7 +75,7 @@ Each object in the array should have a `chat` key containing the conversation da
             "childrenIds": [],
             "role": "assistant",
             "content": "I'm doing well, thank you!",
-            "model": "llama3.2",
+            "model": "qwen3.6:27b",
             "done": true,
             "timestamp": 1700000005
           }
@@ -95,7 +101,7 @@ If the objects in the array do **not** have a `chat` key, the entire object is t
 [
   {
     "title": "My Conversation",
-    "models": ["llama3.2"],
+    "models": ["qwen3.6:27b"],
     "history": {
       "currentId": "message-id-2",
       "messages": {
@@ -112,7 +118,7 @@ If the objects in the array do **not** have a `chat` key, the entire object is t
           "childrenIds": [],
           "role": "assistant",
           "content": "Hi there!",
-          "model": "llama3.2",
+          "model": "qwen3.6:27b",
           "done": true
         }
       }
@@ -130,7 +136,7 @@ If the objects in the array do **not** have a `chat` key, the entire object is t
 | `chat` | object | ✅ | The conversation data (see Chat Data below) |
 | `meta` | object | ❌ | Metadata such as `tags` (array of strings). Defaults to `{}` |
 | `pinned` | boolean | ❌ | Whether the chat is pinned. Defaults to `false` |
-| `folder_id` | string \| null | ❌ | ID of the folder to place the chat in. Defaults to `null` |
+| `folder_id` | string \| null | ❌ | ID of the folder to place the chat in. Defaults to `null`. It has to name a folder **you own**: a folder that does not exist, or one merely shared with you, is cleared and the chat is imported outside any folder rather than failing the import |
 | `created_at` | integer \| null | ❌ | Unix timestamp (seconds) for when the chat was created |
 | `updated_at` | integer \| null | ❌ | Unix timestamp (seconds) for when the chat was last updated |
 
@@ -170,7 +176,7 @@ Messages use a **tree structure** rather than a flat list. Each message referenc
 
 ### ChatGPT Export Format
 
-ChatGPT exports are automatically detected when the first object in the array contains a `mapping` key. You don't need to manually convert ChatGPT exports—just import the file directly and Open WebUI will handle the conversion.
+ChatGPT exports are automatically detected when the first object in the array contains a `mapping` key. You don't need to manually convert ChatGPT exports: just import the file directly and Open WebUI will handle the conversion.
 
 ### Minimal Working Example
 

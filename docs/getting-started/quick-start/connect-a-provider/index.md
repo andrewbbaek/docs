@@ -3,7 +3,7 @@ sidebar_position: 0
 title: "Connect a Provider"
 ---
 
-# 🔌 Connect a Provider
+# Connect a Provider
 
 **Connect Open WebUI to your model provider and start chatting in minutes.**
 
@@ -13,14 +13,19 @@ Open WebUI supports multiple connection protocols, including **Ollama**, **OpenA
 
 ## How It Works
 
+```mermaid
+flowchart LR
+    A["Open WebUI<br/>(frontend)"]
+    B["Provider API<br/>(cloud / local)"]
+    C["Model<br/>(LLM / VLM)"]
+
+    A -- HTTP --> B
+    B -- Inference --> C
+    C -- Tokens --> B
+    B -- Stream --> A
 ```
-┌──────────────┐         ┌──────────────────┐         ┌──────────────┐
-│              │  HTTP    │                  │  Inference│             │
-│  Open WebUI  │────────▶│  Provider API    │────────▶ │    Model     │
-│  (frontend)  │◀────────│  (cloud/local)   │◀──────── │  (LLM/VLM)  │
-│              │  Stream  │                  │  Tokens  │             │
-└──────────────┘         └──────────────────┘         └──────────────┘
-```
+
+![Provider connections in admin settings](/images/admin/admin-connections.png)
 
 1. **You type a message** in Open WebUI
 2. Open WebUI sends it to your provider's API endpoint
@@ -29,7 +34,7 @@ Open WebUI supports multiple connection protocols, including **Ollama**, **OpenA
 5. You see the response in the chat interface
 
 :::tip
-Adding a provider is as simple as entering a URL and API key in **Admin Settings → Connections**. Open WebUI auto-detects available models from most providers.
+Adding a provider is as simple as entering a URL and API key in **Settings → Admin → Connections**. Open WebUI auto-detects available models from most providers.
 :::
 
 ---
@@ -40,10 +45,10 @@ Hosted APIs that require an account and API key. No hardware needed.
 
 | Provider | Models | Guide |
 |----------|--------|-------|
-| **Ollama** | Llama, Mistral, Gemma, Phi, and thousands more (local) | [Starting with Ollama →](./starting-with-ollama) |
-| **OpenAI** | GPT-4o, GPT-4.1, o3, o4-mini | [Starting with OpenAI →](./starting-with-openai) |
-| **Anthropic** | Claude Opus, Sonnet, Haiku | [Starting with Anthropic →](./starting-with-anthropic) |
-| **OpenAI-Compatible** | Google Gemini, DeepSeek, Mistral, Groq, OpenRouter, Amazon Bedrock, Azure, and more | [OpenAI-Compatible Providers →](./starting-with-openai-compatible) |
+| **Ollama** | Qwen, Gemma, Muse Glimmer, gpt-oss, and thousands more (local) | [Starting with Ollama →](./starting-with-ollama) |
+| **OpenAI** | GPT-5.6 Sol, GPT-5.6 Terra, GPT-5.6 Luna | [Starting with OpenAI →](./starting-with-openai) |
+| **Anthropic** | Claude Opus 5, Sonnet 5, Haiku 4.5 | [Starting with Anthropic →](./starting-with-anthropic) |
+| **OpenAI-Compatible** | DeepSeek, Mistral, Groq, OpenRouter, Vercel AI Gateway, Amazon Bedrock, Azure, and more | [OpenAI-Compatible Providers →](./starting-with-openai-compatible) |
 
 ---
 

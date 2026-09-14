@@ -8,7 +8,7 @@ title: "Kubernetes with Helm"
 Deploy using the official Open WebUI Helm chart on any Kubernetes distribution (EKS, AKS, GKE, OpenShift, Rancher, self-managed).
 
 :::info Prerequisites
-Before proceeding, ensure you have configured the [shared infrastructure requirements](/enterprise/deployment#shared-infrastructure-requirements) — PostgreSQL, Redis, a vector database, shared storage, and content extraction.
+Before proceeding, ensure you have configured the [shared infrastructure requirements](/enterprise/deployment#shared-infrastructure-requirements): PostgreSQL, Redis, a vector database, shared storage, and content extraction.
 :::
 
 ## When to Choose This Pattern
@@ -62,7 +62,7 @@ helm repo update
 helm install openwebui open-webui/open-webui -f values.yaml
 ```
 
-Your `values.yaml` should override the defaults to point at your shared infrastructure. The chart has dedicated values for many common settings — use these instead of raw environment variables where available:
+Your `values.yaml` should override the defaults to point at your shared infrastructure. The chart has dedicated values for many common settings: use these instead of raw environment variables where available:
 
 ```yaml
 # Example values.yaml overrides (refer to chart documentation for full schema)
@@ -168,10 +168,10 @@ Skipping this process risks database corruption from concurrent migrations.
 | **Redis** | A single Redis instance with `timeout 1800` and `maxclients 10000` is sufficient for most deployments. Redis Sentinel or Cluster is only needed if Redis itself must be highly available. |
 | **Networking** | Keep all services in the same availability zone. Target < 2 ms database latency. Audit network policies to ensure pods can reach PostgreSQL, Redis, and storage backends. |
 
-For the complete Helm setup guide, see the [Quick Start guide](/getting-started/quick-start). For troubleshooting multi-replica issues, see [Multi-Replica Troubleshooting](/troubleshooting/multi-replica).
+For the complete Helm setup guide, see [Kubernetes with Helm](/getting-started/quick-start/install-methods/kubernetes-helm). For troubleshooting multi-replica issues, see [Multi-Replica Troubleshooting](/troubleshooting/multi-replica).
 
 ---
 
 **Need help planning your enterprise deployment?** Our team works with organizations worldwide to design and implement production Open WebUI environments.
 
-[**Contact Enterprise Sales → sales@openwebui.com**](mailto:sales@openwebui.com)
+[**Contact Enterprise Sales →**](https://openwebui.com/contact/sales)

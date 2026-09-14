@@ -7,7 +7,7 @@ title: "Automations"
 
 Automations let you schedule prompts to run automatically at recurring times. Each run creates a chat and executes through the normal chat completion pipeline, so model defaults, tools, filters, and other pipeline behavior still apply.
 
-Automations can be enabled or disabled globally by an administrator via the [`ENABLE_AUTOMATIONS`](/reference/env-configuration#enable_automations) environment variable or the **Admin Panel > Settings > General** toggle. When disabled, the automation worker stops processing, API endpoints return `403`, and the sidebar entry is hidden.
+Automations can be enabled or disabled globally by an administrator via the [`ENABLE_AUTOMATIONS`](/reference/env-configuration#enable_automations) environment variable or the **Settings > Admin > General** toggle. When disabled, the automation worker stops processing, API endpoints return `403`, and the sidebar entry is hidden.
 
 ## What You Can Automate
 
@@ -15,7 +15,8 @@ Automations can be enabled or disabled globally by an administrator via the [`EN
 - Trigger a run manually with **Run Now**
 - Pause/resume automations without deleting them
 - Review execution history for each automation
-- Optionally attach a terminal server and working directory for runs that need terminal context
+- Optionally file the chats a schedule creates into one of your [folders](/features/chat-conversations/chat-features/conversation-organization)
+- Give runs a terminal by configuring one on the model the automation uses
 
 ## Access Control
 
@@ -23,6 +24,8 @@ Automations are permission-gated for non-admin users.
 
 - **Admins**: always have access to Automations
 - **Users**: require the **Features > Automations** permission
+
+Automations are private to the user who created them. Only the owner can open, edit, run, or delete one; every other request, including one from an administrator, is answered as if the automation did not exist. The **Features > Automations** permission decides whether someone may have automations at all, not whose automations they may reach.
 
 See [RBAC Permissions](/features/authentication-access/rbac/permissions#4-features-permissions) for the permission category.
 
@@ -60,10 +63,18 @@ Administrators can set global limits on automation usage for non-admin users. Th
    - **Instructions** (prompt)
    - **Model**
    - **Schedule**
-4. (Optional) Select a **Terminal** server and **Working Directory**
+4. (Optional) Choose a **Folder** for the chats the automation creates
 5. Click **Create**
 
 After creation, Open WebUI opens the dedicated automation editor page at `/automations/{id}`.
+
+### Giving a Run a Terminal
+
+The automation editor has no terminal setting. A run uses the terminal configured on the model it runs, so set that up first in **Workspace > Models**: edit the model and pick the terminal from the **Terminal** list. The list appears when at least one terminal is available to you and the model's **Terminal** capability is on, which it is by default. Every automation using that model then runs with that terminal.
+
+:::info A terminal can be closed to automations
+Administrators can take an orchestrated terminal out of automations, and can give each automation a workspace of its own rather than sharing one across everything. The model editor's **Terminal** list does not reflect that, so a run can fail with an error saying the terminal is not available for automations, which means its **Automation** context is set to **Off**. Pick a different terminal for the model, or ask an administrator to reopen that one. See [Terminal Contexts](/features/open-terminal/terminals/orchestration/contexts).
+:::
 
 ## Edit and Manage
 
@@ -71,7 +82,7 @@ From the Automations list, click an automation to open its dedicated editor page
 
 On the editor page, you can:
 
-- Update title, instructions, model, schedule, and terminal settings
+- Update title, instructions, model and schedule
 - Save changes
 - Run immediately with **Run now**
 - Pause/resume automation state
@@ -79,6 +90,32 @@ On the editor page, you can:
 - Review execution logs and open run chats
 
 Execution logs are paginated with infinite scroll in the editor, so large run histories load incrementally.
+
+## Export and Import
+
+The Automations list header has a split **Create** button. Its dropdown holds **Import JSON** and **Export JSON**, which move automations between instances or accounts.
+
+**Export JSON** downloads every automation you own as `automations-export-<timestamp>.json`, regardless of the search box or the status filter. Each entry keeps its name, schedule and other settings, folder assignment and enabled state. IDs, timestamps and run history are not written to the file, so an export is a copy of your definitions, not a backup of past runs.
+
+**Import JSON** accepts a `.json` file holding either a bare array of automations or an object with an `automations` key. Anything else is rejected as invalid JSON format.
+
+What import does and does not do:
+
+- Every entry becomes a **new** automation. Nothing is matched against what you already have, so importing the same file twice leaves you with duplicates.
+- Entries are **created active** unless the file sets `is_active` to `false`. Importing can therefore start scheduled runs on the target instance right away; disable them first if that is not what you want.
+- A folder is kept only if a folder with that ID exists in your own account. Otherwise it is dropped and the automation is imported without one.
+- Each entry goes through the normal create path, so schedule validation and the [admin limits](#admin-limits) still apply. The first entry that is rejected, an invalid `RRULE` or a hit against [`AUTOMATION_MAX_COUNT`](/reference/env-configuration#automation_max_count) for example, aborts the rest of the import; entries created before it stay.
+
+## Folders
+
+An automation can be assigned a folder, and every chat it creates from then on is filed there instead of landing loose in the chat list. This keeps a recurring report or digest out of the way, and lets the folder's unread badge tell you how many runs you have not read yet.
+
+- Only your own folders can be chosen. A folder shared with you belongs to someone else and is not offered, and naming one anyway is rejected the same way an unknown folder is.
+- The folder is a filing destination, not a project context: the chat is placed in the folder, and the folder's system prompt and attached knowledge apply to it as they do to any other chat there.
+- The automations list can be narrowed to a folder through the API and the chat tools; the list page itself does not label or filter by folder. Asking for the list without a folder, or with an empty one, returns every automation you have, whichever folder each is filed into.
+- Clearing the folder is a normal edit. The automation keeps running and its future chats go back to the ungrouped list; chats already created stay where they are.
+- Deleting a folder does not delete the automations pointed at it. They lose the folder and keep running. The same happens if a folder disappears between two runs: the run notices, clears the setting, and creates its chat outside any folder rather than failing.
+- Imported automations keep their folder only if a folder with that ID exists in your account; otherwise they are imported without one.
 
 ## Scheduling
 
@@ -92,6 +129,14 @@ Supported schedule modes:
 - **Custom** (`RRULE`)
 
 Custom schedules accept standard RRULE syntax. Invalid or exhausted rules are rejected.
+
+A few rules about how a custom rule is read:
+
+- **Sub-daily rules snap to the clock.** A `SECONDLY`, `MINUTELY` or `HOURLY` rule with no `DTSTART` is anchored to the clock, so every 5 minutes means `:00`, `:05`, `:10` rather than five minutes after you happened to save it.
+- **A `DTSTART` is honored where it is still meaningful.** Give the rule a start time and the schedule counts from there, keeping any phase you intended. If that start lies so far in the past that following it literally would mean walking through more than 100,000 occurrences to reach now, the rule falls back to clock alignment instead of stalling.
+- **`INTERVAL` must be a positive whole number.** Zero or a negative value is rejected rather than quietly treated as one.
+- **One rule per schedule.** Multiple `RRULE` lines are rejected, and `EXRULE` is not supported at all; build the exclusion into the rule itself.
+- Property names are read case-insensitively, so `freq=daily` behaves like `FREQ=DAILY`.
 
 ## Notes
 
@@ -107,9 +152,9 @@ When using **Native Function Calling Mode** with a capable model, automations ca
 
 | Tool | What it does |
 |------|-------------|
-| `create_automation` | Create a new scheduled automation with a name, prompt, and RRULE schedule. Uses the current chat model. |
-| `update_automation` | Update an existing automation's name, prompt, schedule, or model |
-| `list_automations` | List your scheduled automations with status, schedule, and next runs |
+| `create_automation` | Create a new scheduled automation with a name, prompt, and RRULE schedule, and optionally a folder for its chats. Uses the current chat model. |
+| `update_automation` | Update an existing automation's name, prompt, schedule, model, or folder |
+| `list_automations` | List your scheduled automations with status, folder, schedule, and next runs |
 | `toggle_automation` | Pause or resume a scheduled automation |
 | `delete_automation` | Delete a scheduled automation and all its run history |
 
@@ -122,5 +167,10 @@ For chat-based automation tools to be available:
 3. **Automations** category must be enabled in the model's Builtin Tools settings (enabled by default)
 4. **`ENABLE_AUTOMATIONS`** must be enabled globally (enabled by default)
 5. The user must have the **Features > Automations** permission (admins always pass)
+
+The folder argument these tools accept is a folder ID, and it is checked against the folders you own: a folder that is not yours, or no longer exists, comes back as an error instead of being applied.
+
+- On `update_automation`, omitting the argument or passing a blank string keeps the automation's current folder. Passing `null` clears it. The same applies to `model_id`: a blank value is ignored rather than wiping the automation's model.
+- On `list_automations`, omitting the argument or passing a blank string lists across all folders.
 
 See the [Builtin Tools reference](/features/extensibility/plugin/tools#built-in-system-tools-nativeagentic-mode) for full details on all builtin tools.

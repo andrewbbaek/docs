@@ -5,10 +5,14 @@ title: "Deployment Options"
 
 # Scalable Enterprise Deployment Options
 
-Open WebUI's **stateless, container-first architecture** means the same application runs identically whether you deploy it as a Python process on a VM, a container in a managed service, or a pod in a Kubernetes cluster. The difference between deployment patterns is how you **orchestrate, scale, and operate** the application — not how the application itself behaves.
+Open WebUI's **stateless, container-first architecture** means the same application runs identically whether you deploy it as a Python process on a VM, a container in a managed service, or a pod in a Kubernetes cluster. The difference between deployment patterns is how you **orchestrate, scale, and operate** the application, not how the application itself behaves.
 
 :::tip Model Inference Is Independent
 How you serve LLM models is separate from how you deploy Open WebUI. You can use **managed APIs** (OpenAI, Anthropic, Azure OpenAI, Google Gemini) or **self-hosted inference** (Ollama, vLLM) with any deployment pattern. See [Integration](/enterprise/integration) for details on connecting models.
+:::
+
+:::info Sovereign AI Planning
+For sovereign AI deployments, start by defining four boundaries before choosing a runtime pattern: the deployment boundary, the model boundary, the identity boundary, and the data boundary. The [Sovereign AI Platform](/enterprise/sovereign-ai) guide maps these decisions to the relevant Open WebUI controls.
 :::
 
 ---
@@ -67,6 +71,8 @@ ENABLE_DB_MIGRATIONS=false
 
 :::warning Database Migrations
 Set `ENABLE_DB_MIGRATIONS=false` on **all instances except one**. During updates, scale down to a single instance, allow migrations to complete, then scale back up. Concurrent migrations can corrupt your database.
+
+Rolling updates are not supported across a release that changes the schema, whatever rolling-deployment machinery your platform offers: every instance has to move to the new version at once, and old and new instances must never serve traffic against the same database at the same time. Back the database up before you start. See [Updates and Migrations](/troubleshooting/multi-replica#updates-and-migrations).
 :::
 
 For the complete step-by-step scaling walkthrough, see [Scaling Open WebUI](/getting-started/advanced-topics/scaling). For the full environment variable reference, see [Environment Variable Configuration](/reference/env-configuration).
@@ -83,7 +89,7 @@ Deploy `open-webui serve` as a systemd-managed process on virtual machines in a 
 
 ### [Container Service](./container-service)
 
-Run the official Open WebUI container image on a managed platform such as AWS ECS/Fargate, Azure Container Apps, or Google Cloud Run. Best for teams wanting container benefits — immutable images, versioned deployments, no OS management — without Kubernetes complexity.
+Run the official Open WebUI container image on a managed platform such as AWS ECS/Fargate, Azure Container Apps, or Google Cloud Run. Best for teams wanting container benefits (immutable images, versioned deployments, no OS management) without Kubernetes complexity.
 
 ### [Kubernetes with Helm](./kubernetes-helm)
 
@@ -95,9 +101,9 @@ Deploy using the official Open WebUI Helm chart on any Kubernetes distribution (
 
 | | **Python / Pip (VMs)** | **Container Service** | **Kubernetes (Helm)** |
 | :--- | :--- | :--- | :--- |
-| **Operational complexity** | Moderate — OS patching, Python management | Low — platform-managed containers | Higher — requires K8s expertise |
+| **Operational complexity** | Moderate (OS patching, Python management) | Low (platform-managed containers) | Higher (requires K8s expertise) |
 | **Auto-scaling** | Cloud ASG/VMSS with health checks | Platform-native, minimal configuration | HPA with fine-grained control |
-| **Container isolation** | None — process runs directly on OS | Full container isolation | Full container + namespace isolation |
+| **Container isolation** | None (process runs directly on OS) | Full container isolation | Full container + namespace isolation |
 | **Rolling updates** | Manual (scale down, update, scale up) | Platform-managed rolling deployments | Declarative rolling updates with rollback |
 | **Infrastructure-as-code** | Terraform/Pulumi for VMs + config mgmt | Task/service definitions (CloudFormation, Bicep, Terraform) | Helm charts + GitOps (Argo CD, Flux) |
 | **Best suited for** | Teams with VM-centric operations, regulatory constraints | Teams wanting container benefits without K8s complexity | Large-scale, mission-critical deployments |
@@ -111,8 +117,8 @@ Production deployments should include monitoring and observability regardless of
 
 ### Health Checks
 
-- **`/health`** — Basic liveness check. Returns HTTP 200 when the application is running. Use this for load balancer and auto-scaler health checks.
-- **`/api/models`** — Verifies the application can connect to configured model backends. Requires an API key.
+- **`/health`**: Basic liveness check. Returns HTTP 200 when the application is running. Use this for load balancer and auto-scaler health checks.
+- **`/api/models`**: Verifies the application can connect to configured model backends. Requires an API key.
 
 ### OpenTelemetry
 
@@ -124,7 +130,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4318
 OTEL_SERVICE_NAME=open-webui
 ```
 
-This auto-instruments FastAPI, SQLAlchemy, Redis, and HTTP clients — giving visibility into request latency, database query performance, and cross-service traces.
+This auto-instruments FastAPI, SQLAlchemy, Redis, and HTTP clients, giving visibility into request latency, database query performance, and cross-service traces.
 
 ### Structured Logging
 
@@ -141,14 +147,14 @@ For full monitoring setup details, see [Monitoring](/reference/monitoring) and [
 
 ## Next Steps
 
-- **[Architecture & High Availability](/enterprise/architecture)** — Deeper dive into Open WebUI's stateless design and HA capabilities.
-- **[Security](/enterprise/security)** — Compliance frameworks, SSO/LDAP integration, RBAC, and audit logging.
-- **[Integration](/enterprise/integration)** — Connecting AI models, pipelines, and extending functionality.
-- **[Scaling Open WebUI](/getting-started/advanced-topics/scaling)** — The complete step-by-step technical scaling guide.
-- **[Multi-Replica Troubleshooting](/troubleshooting/multi-replica)** — Solutions for common issues in scaled deployments.
+- **[Architecture & High Availability](/enterprise/architecture)**: Deeper dive into Open WebUI's stateless design and HA capabilities.
+- **[Security](/enterprise/security)**: Compliance frameworks, SSO/LDAP integration, RBAC, and audit logging.
+- **[Integration](/enterprise/integration)**: Connecting AI models, pipelines, and extending functionality.
+- **[Scaling Open WebUI](/getting-started/advanced-topics/scaling)**: The complete step-by-step technical scaling guide.
+- **[Multi-Replica Troubleshooting](/troubleshooting/multi-replica)**: Solutions for common issues in scaled deployments.
 
 ---
 
 **Need help planning your enterprise deployment?** Our team works with organizations worldwide to design and implement production Open WebUI environments.
 
-[**Contact Enterprise Sales → sales@openwebui.com**](mailto:sales@openwebui.com)
+[**Contact Enterprise Sales →**](https://openwebui.com/contact/sales)

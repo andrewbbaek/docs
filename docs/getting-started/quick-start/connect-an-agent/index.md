@@ -3,7 +3,7 @@ sidebar_position: 0
 title: "Connect an Agent"
 ---
 
-# 🤖 Connect an Agent
+# Connect an Agent
 
 **Use Open WebUI as the chat frontend for autonomous AI agents.**
 
@@ -32,8 +32,9 @@ The agent decides when and how to use these tools based on your message, and Ope
 
 | Agent | Description | Guide |
 |-------|-------------|-------|
-| **Hermes Agent** | Autonomous agent by Nous Research with terminal, file ops, web search, memory, and extensible skills | [Set up Hermes Agent →](./hermes-agent) |
-| **OpenClaw** | Open-source self-hosted agent framework with shell access, file operations, web browsing, and messaging channel integrations | [Set up OpenClaw →](./openclaw) |
+| **Open WebUI Computer** | Your computer in a browser tab, by the Open WebUI team. Each workspace connects to Open WebUI as a model with full tool access via an OpenAI-compatible gateway. | [Set up Open WebUI Computer →](/getting-started/quick-start/connect-an-agent/cptr) |
+| **Hermes Agent** | Autonomous agent by Nous Research with terminal, file ops, web search, memory, and extensible skills | [Set up Hermes Agent →](/getting-started/quick-start/connect-an-agent/hermes-agent) |
+| **OpenClaw** | Open-source self-hosted agent framework with shell access, file operations, web browsing, and messaging channel integrations | [Set up OpenClaw →](/getting-started/quick-start/connect-an-agent/openclaw) |
 
 ---
 
@@ -41,13 +42,16 @@ The agent decides when and how to use these tools based on your message, and Ope
 
 Regardless of which agent you connect, the architecture is the same:
 
-```
-┌──────────────┐         ┌──────────────────┐         ┌──────────────┐
-│              │  HTTP    │                  │  Tools  │              │
-│  Open WebUI  │────────▶│   Agent Gateway  │────────▶│  Terminal,   │
-│  (frontend)  │◀────────│   (API server)   │◀────────│  Files, Web  │
-│              │  Stream  │                  │  Results│              │
-└──────────────┘         └──────────────────┘         └──────────────┘
+```mermaid
+flowchart LR
+    A["Open WebUI<br/>(frontend)"]
+    B["Agent Gateway<br/>(API server)"]
+    C["Terminal,<br/>Files, Web"]
+
+    A -- HTTP --> B
+    B -- Tools --> C
+    C -- Results --> B
+    B -- Stream --> A
 ```
 
 1. **You type a message** in Open WebUI
@@ -57,5 +61,5 @@ Regardless of which agent you connect, the architecture is the same:
 5. You see the response in the familiar chat interface, with full conversation history, user accounts, and all Open WebUI features
 
 :::tip
-Because agents speak the standard OpenAI Chat Completions protocol, adding one is as simple as adding the URL and API key in **Admin Settings → Connections → OpenAI**. No plugins, no pipes, no middleware required.
+Because agents speak the standard OpenAI Chat Completions protocol, adding one is as simple as adding the URL and API key in **Settings → Admin → Connections → OpenAI**. No plugins, no pipes, no middleware required.
 :::

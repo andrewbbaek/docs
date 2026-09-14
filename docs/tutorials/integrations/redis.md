@@ -3,7 +3,7 @@ sidebar_position: 50
 title: "Redis Websocket Support"
 ---
 
-# 🔗 Redis Websocket Support
+# Redis Websocket Support
 
 :::warning
 
@@ -66,7 +66,7 @@ Without Redis in multi-worker or multi-instance scenarios, you will experience:
 ### Prerequisites
 
 - A valid Open WebUI instance (running version 1.0 or higher)
-- A Redis container (we will use `docker.io/valkey/valkey:8.0.1-alpine` in this example, which is based on the latest Redis 7.x release)
+- A Redis container (we will use `redis:7-alpine` in this example)
 - Docker Composer (version 2.0 or higher) installed on your system
 - A Docker network for communication between Open WebUI and Redis
 - Basic understanding of Docker, Redis, and Open WebUI
@@ -112,8 +112,8 @@ timeout 1800
 ```yml
 services:
   redis:
-    image: docker.io/valkey/valkey:8.0.1-alpine
-    command: "valkey-server --save 30 1 --maxclients 10000 --timeout 1800"
+    image: redis:7-alpine
+    command: "redis-server --save 30 1 --appendonly yes --maxclients 10000 --timeout 1800 --maxmemory-policy noeviction"
     # ... rest of config
 ```
 
@@ -135,21 +135,61 @@ With proper `timeout` configuration, this number should fluctuate naturally (ris
 
 :::
 
+### Critical: Memory Eviction Policy
+
+:::danger
+
+**Do not give Open WebUI's Redis an `allkeys-*` eviction policy.**
+
+Open WebUI uses Redis as a **stateful store, not a disposable cache**. Its keys fall into two groups:
+
+- **TTL'd security keys**: token-revocation entries (`{prefix}:auth:token:<jti>:revoked`, set to expire exactly when the token would) and distributed locks (set with an expiry).
+- **Persistent operational keys**: the websocket **session** and **usage** pools (Redis hashes with no expiry) and cached configuration.
+
+Under an `allkeys-lru`, `allkeys-lfu`, or `allkeys-random` policy, Redis evicts **any** key when memory fills, including the two groups above. That can:
+
+- **silently un-revoke a signed-out token**: if the revocation key is evicted before its TTL, a token that was invalidated by logout, password change, or admin deactivation starts working again (a security regression), and
+- **break websockets, session tracking, and configuration** by evicting the persistent pools.
+
+Use **`noeviction`** (the safe default). When memory is exhausted, Redis rejects new writes with an error, which is a loud, recoverable signal, instead of silently discarding auth and session state:
+
+```conf
+maxmemory-policy noeviction
+```
+
+Open WebUI's Redis working set is small (sessions, revocations, locks, config), so with `maxmemory` left unset Redis simply uses what it needs and never evicts. Only set a `maxmemory` cap if you have a specific reason to, and if you do, alert on usage rather than relying on eviction.
+
+If you genuinely must cap memory **with** eviction, the only acceptable policies are `volatile-ttl` or `volatile-lru`: these evict **only** keys that carry a TTL (locks and revocations) and never the persistent pools. Be aware this can still drop a revocation early, so prefer adding RAM over enabling eviction.
+
+:::
+
+### Persistence
+
+The example command uses `--save 30 1` (an RDB snapshot every 30 minutes, if at least one key changed). On an **unclean** restart, Redis loses every write since the last snapshot, up to 30 minutes of token revocations and session state, so a crash can resurrect signed-out tokens and drop active sessions.
+
+For production, also enable the append-only file so durability is measured in seconds, not tens of minutes:
+
+```conf
+appendonly yes
+appendfsync everysec
+```
+
+`appendfsync everysec` flushes the AOF to disk once per second, bounding worst-case loss to roughly one second at a small, usually negligible I/O cost for Open WebUI's modest Redis workload. RDB and AOF coexist; keeping both gives fast restarts plus second-level durability. The example `command` in the next section already includes `--appendonly yes` and `--maxmemory-policy noeviction`.
+
 ## Setting up Redis
 
 To set up Redis for websocket support, you will need to create a `docker-compose.yml` file with the following contents:
 
 ```yml
-version: '3.9'
 services:
   redis:
-    image: docker.io/valkey/valkey:8.0.1-alpine
-    container_name: redis-valkey
+    image: redis:7-alpine
+    container_name: redis
     volumes:
       - redis-data:/data
-    command: "valkey-server --save 30 1 --maxclients 10000 --timeout 1800"
+    command: "redis-server --save 30 1 --appendonly yes --maxclients 10000 --timeout 1800 --maxmemory-policy noeviction"
     healthcheck:
-      test: "[ $$(valkey-cli ping) = 'PONG' ]"
+      test: "[ $$(redis-cli ping) = 'PONG' ]"
       start_period: 5s
       interval: 1s
       timeout: 3s
@@ -183,11 +223,44 @@ Notes
 
 The `ports` directive is not included in this configuration, as it is not necessary in most cases. The Redis service will still be accessible from within the Docker network by the Open WebUI service. However, if you need to access the Redis instance from outside the Docker network (e.g., for debugging or monitoring purposes), you can add the `ports` directive to expose the Redis port (e.g., `6379:6379`).
 
-The above configuration sets up a Redis container named `redis-valkey` and mounts a volume for data persistence. The `healthcheck` directive ensures that the container is restarted if it fails to respond to the `ping` command. The `--save 30 1` command option saves the Redis database to disk every 30 minutes if at least 1 key has changed.
+The above configuration sets up a Redis container named `redis` and mounts a volume for data persistence. The `healthcheck` directive ensures that the container is restarted if it fails to respond to the `ping` command. The `--save 30 1` command option writes an RDB snapshot every 30 minutes if at least 1 key has changed, and `--appendonly yes` adds the append-only log for second-level durability.
 
-**Important:** The `--maxclients 10000 --timeout 1800` flags prevent connection exhaustion. See the "Critical: Redis Server Configuration" section above for details.
+**Important:** The `--maxclients 10000 --timeout 1800` flags prevent connection exhaustion, and `--maxmemory-policy noeviction` stops Redis from silently evicting Open WebUI's session and token-revocation keys. See the [Critical: Redis Server Configuration](#critical-redis-server-configuration), [Memory Eviction Policy](#critical-memory-eviction-policy), and [Persistence](#persistence) sections above for details.
 
 :::
+
+### WebSocket Pub/Sub Buffer Limits
+
+Open WebUI uses Socket.IO over Redis Pub/Sub when `WEBSOCKET_MANAGER=redis` is enabled. Streaming responses and tool events can generate large websocket events because some updates include accumulated message state, not only the newest token delta. If Redis disconnects Pub/Sub clients while delivering these events, users can see stalled streams, missing live updates, or log messages such as:
+
+```text
+Cannot publish to redis... retrying
+Cannot publish to redis... giving up
+redis.exceptions.TimeoutError: Timeout connecting to server
+```
+
+Check whether Redis is disconnecting Pub/Sub clients because of output buffer limits:
+
+```bash
+redis-cli INFO stats | grep client_output_buffer_limit_disconnections
+redis-cli SLOWLOG GET 50
+redis-cli CONFIG GET client-output-buffer-limit
+```
+
+If the slow log shows large `PUBLISH socketio ...` payloads and `client_output_buffer_limit_disconnections` increases, raise the Redis Pub/Sub output buffer limit. For example:
+
+```conf
+# Keep normal clients unchanged; allow larger websocket Pub/Sub bursts.
+client-output-buffer-limit normal 0 0 0 replica 268435456 67108864 60 pubsub 1073741824 268435456 180
+```
+
+This sets the Pub/Sub hard limit to 1 GB and the soft limit to 256 MB for 180 seconds. Tune these values for your available Redis memory and expected websocket payload size. Higher limits make Redis more tolerant of temporary slow subscribers, but they also allow each slow Pub/Sub client to buffer more memory before Redis disconnects it.
+
+If you changed Redis configuration at runtime, verify the active value:
+
+```bash
+redis-cli CONFIG GET client-output-buffer-limit
+```
 
 To create a Docker network for communication between Open WebUI and Redis, run the following command:
 
@@ -204,7 +277,7 @@ To enable Redis support in Open WebUI, you need to configure different environme
 For **all deployments** using Redis (single or multi-instance), set the following base environment variable:
 
 ```bash
-REDIS_URL="redis://redis-valkey:6379/0"
+REDIS_URL="redis://redis:6379/0"
 ```
 
 This variable configures the primary Redis connection for application state management, session storage, and coordination between instances.
@@ -216,7 +289,7 @@ To enable websocket support specifically, add these additional environment varia
 ```bash
 ENABLE_WEBSOCKET_SUPPORT="true"
 WEBSOCKET_MANAGER="redis"
-WEBSOCKET_REDIS_URL="redis://redis-valkey:6379/1"
+WEBSOCKET_REDIS_URL="redis://redis:6379/1"
 ```
 
 :::danger Critical: Configure CORS for WebSocket Connections
@@ -261,7 +334,7 @@ The `REDIS_KEY_PREFIX` allows multiple Open WebUI instances to share the same Re
 
 :::danger Critical: Socket Timeout for Sentinel Deployments
 
-Redis Sentinel setups require explicit socket connection timeout configuration to ensure proper failover behavior. Without a timeout, the application can hang indefinitely when a Redis master node goes offline—potentially preventing even application restarts.
+Redis Sentinel setups require explicit socket connection timeout configuration to ensure proper failover behavior. Without a timeout, the application can hang indefinitely when a Redis master node goes offline, potentially preventing even application restarts.
 
 **Symptoms of missing timeout configuration:**
 - Application becomes completely unresponsive during failover
@@ -291,21 +364,21 @@ WEBSOCKET_REDIS_OPTIONS='{"socket_connect_timeout": 5}'
 
 #### Retry and Reconnect Logic
 
-To enhance resilience during Sentinel failover—the window when a new master is being elected and promoted—you can configure retry behavior to prevent the application from exhausting its reconnection attempts too quickly.
+To enhance resilience during Sentinel failover (the window when a new master is being elected and promoted) you can configure retry behavior to prevent the application from exhausting its reconnection attempts too quickly.
 
 - **`REDIS_SENTINEL_MAX_RETRY_COUNT`**: Sets the maximum number of retries for Redis operations when using Sentinel (Default: `2`).
 - **`REDIS_RECONNECT_DELAY`**: Adds an optional delay in **milliseconds** between retry attempts (e.g., `REDIS_RECONNECT_DELAY=500`). This prevents tight retry loops that may otherwise overwhelm the event loop or block the application before a new master is ready.
 
 #### Connection Health Checks
 
-If your Redis server has a `timeout` configured (recommended — see above), pooled connections that sit idle longer than that timeout will be reaped server-side. Without health checks, the next request that grabs one of those dead sockets will fail with `ConnectionError: Connection reset by peer`.
+If your Redis server has a `timeout` configured (recommended, see above), pooled connections that sit idle longer than that timeout will be reaped server-side. Without health checks, the next request that grabs one of those dead sockets will fail with `ConnectionError: Connection reset by peer`.
 
 - **`REDIS_HEALTH_CHECK_INTERVAL`**: How often (in seconds) redis-py should PING an idle pooled connection before reusing it (e.g., `REDIS_HEALTH_CHECK_INTERVAL=60`). The value must be **shorter** than your Redis server's `timeout` and any firewall/load balancer idle timeout on the path to Redis. Set to `0` or leave empty to disable.
 - **`REDIS_SOCKET_KEEPALIVE`**: Enables TCP `SO_KEEPALIVE` on all Redis client sockets (e.g., `REDIS_SOCKET_KEEPALIVE=True`). When enabled, the OS kernel sends TCP keepalive probes on idle connections, detecting half-closed sockets caused by silent firewall/load balancer resets or network flaps at the TCP level.
 
 These two mechanisms are complementary:
-- `REDIS_HEALTH_CHECK_INTERVAL` works at the **application level** — redis-py PINGs idle connections on checkout, validating the socket and resetting the server's idle timer.
-- `REDIS_SOCKET_KEEPALIVE` works at the **TCP level** — the kernel detects dead peers even when no application-level traffic is flowing.
+- `REDIS_HEALTH_CHECK_INTERVAL` works at the **application level**: redis-py PINGs idle connections on checkout, validating the socket and resetting the server's idle timer.
+- `REDIS_SOCKET_KEEPALIVE` works at the **TCP level**: the kernel detects dead peers even when no application-level traffic is flowing.
 
 :::tip Recommended pairing
 
@@ -359,12 +432,12 @@ Redis Cluster mode is fully compatible with OpenTelemetry instrumentation. When 
 Here's a complete example showing all Redis-related environment variables:
 ```bash
 # Required for multi-worker/multi-instance deployments
-REDIS_URL="redis://redis-valkey:6379/0"
+REDIS_URL="redis://redis:6379/0"
 
 # Required for websocket support
 ENABLE_WEBSOCKET_SUPPORT="true"
 WEBSOCKET_MANAGER="redis"
-WEBSOCKET_REDIS_URL="redis://redis-valkey:6379/1"
+WEBSOCKET_REDIS_URL="redis://redis:6379/1"
 
 # Recommended for Sentinel deployments (prevents failover hangs)
 REDIS_SOCKET_CONNECT_TIMEOUT=5
@@ -412,10 +485,10 @@ docker run -d \
   --network openwebui-network \
   -v open-webui:/app/backend/data \
   -p 3000:8080 \
-  -e REDIS_URL="redis://redis-valkey:6379/0" \
+  -e REDIS_URL="redis://redis:6379/0" \
   -e ENABLE_WEBSOCKET_SUPPORT="true" \
   -e WEBSOCKET_MANAGER="redis" \
-  -e WEBSOCKET_REDIS_URL="redis://redis-valkey:6379/1" \
+  -e WEBSOCKET_REDIS_URL="redis://redis:6379/1" \
   -e REDIS_KEY_PREFIX="open-webui" \
   ghcr.io/open-webui/open-webui:main
 ```
@@ -424,13 +497,13 @@ docker run -d \
 
 **Important Note on Service Names**
 
-In the examples above, we use `redis://redis-valkey:6379` because:
+In the examples above, we use `redis://redis:6379` because:
 
-- `redis-valkey` is the container name defined in the docker-compose.yml
+- `redis` is the container name defined in the docker-compose.yml
 - Docker's internal DNS resolves this name to the correct IP address within the network
 - This is the recommended approach for Docker deployments
 
-Do **not** use `127.0.0.1` or `localhost` when connecting from one container to another - these refer to the container's own localhost, not the Redis container.
+Do **not** use `127.0.0.1` or `localhost` when connecting from one container to another. These refer to the container's own localhost, not the Redis container.
 
 :::
 
@@ -440,8 +513,14 @@ If you're running multiple Uvicorn workers on a single host, add this variable:
 
 ```bash
 UVICORN_WORKERS="4"  # Adjust based on your CPU cores
-REDIS_URL="redis://redis-valkey:6379/0"  # Required when UVICORN_WORKERS > 1
+REDIS_URL="redis://redis:6379/0"  # Required when UVICORN_WORKERS > 1
 ```
+
+:::warning Prefer more containers over more workers
+
+Raising `UVICORN_WORKERS` is the weakest way to scale Open WebUI. It requires the same external services as running several containers, Redis included, while leaving every worker inside one container that shares a single memory limit and fails as a unit. Run replicas with Docker Compose, Kubernetes or the Helm chart instead, keeping one worker each. See [Scaling Open WebUI](/getting-started/advanced-topics/scaling).
+
+:::
 
 :::danger
 
@@ -477,7 +556,7 @@ See the [Scaling & HA guide](/troubleshooting/multi-replica#6-worker-crashes-dur
 First, confirm that your Redis instance is running and accepting connections:
 
 ```bash
-docker exec -it redis-valkey valkey-cli -p 6379 ping
+docker exec -it redis redis-cli -p 6379 ping
 ```
 
 This command should output `PONG` if the Redis instance is running correctly.
@@ -513,11 +592,7 @@ docker logs open-webui 2>&1 | grep "Using Redis to manage websockets"
 You can also verify that Open WebUI is actually writing data to Redis:
 
 ```bash
-# List all Open WebUI keys
-docker exec -it redis-valkey valkey-cli --scan --pattern "open-webui*"
-
-# Or with the default Redis CLI
-docker exec -it redis-valkey redis-cli --scan --pattern "open-webui*"
+docker exec -it redis redis-cli --scan --pattern "open-webui*"
 ```
 
 If Redis is configured correctly, you should see keys with your configured prefix (e.g., `open-webui:session:*`, `open-webui:config:*`).
@@ -547,7 +622,7 @@ If you're logged out randomly or see authentication errors, Redis is likely not 
 **Solutions:**
 
 1. Verify Redis container is running: `docker ps | grep redis`
-2. Check Redis is healthy: `docker exec -it redis-valkey valkey-cli ping`
+2. Check Redis is healthy: `docker exec -it redis redis-cli ping`
 3. Verify network connectivity: `docker network inspect openwebui-network`
 4. Ensure the `REDIS_URL` uses the correct container name, not `127.0.0.1` or `localhost`
 5. Check that both containers are on the same Docker network
@@ -566,7 +641,7 @@ If you're logged out randomly or see authentication errors, Redis is likely not 
 Add the `REDIS_URL` environment variable:
 
 ```bash
-REDIS_URL="redis://redis-valkey:6379/0"
+REDIS_URL="redis://redis:6379/0"
 ```
 
 #### Issue: "Websockets not working"
@@ -582,7 +657,7 @@ REDIS_URL="redis://redis-valkey:6379/0"
 1. Verify all websocket environment variables are set:
    - `ENABLE_WEBSOCKET_SUPPORT="true"`
    - `WEBSOCKET_MANAGER="redis"`
-   - `WEBSOCKET_REDIS_URL="redis://redis-valkey:6379/1"`
+   - `WEBSOCKET_REDIS_URL="redis://redis:6379/1"`
 2. Check logs for: `DEBUG:open_webui.socket.main:Using Redis to manage websockets.`
 3. Verify Redis is accessible from Open WebUI container
 
@@ -612,16 +687,32 @@ REDIS_KEY_PREFIX="openwebui-dev"
 - Redis memory usage increases over time
 - Container eventually runs out of memory
 
+:::danger
+Do **not** "fix" this with `--maxmemory-policy allkeys-lru`. Open WebUI's Redis holds token-revocation keys, session pools, and locks, not disposable cache. An `allkeys-*` policy can silently un-revoke a signed-out token and break sessions. See [Memory Eviction Policy](#critical-memory-eviction-policy).
+:::
+
+Continuously growing memory usually means key growth, not a missing eviction policy, so investigate the cause rather than masking it with eviction.
+
 **Solutions:**
 
-1. Configure Redis maxmemory policy:
+1. Find what is consuming memory and whether it is growing without bound:
 
-```yml
-   command: "valkey-server --save 30 1 --maxmemory 256mb --maxmemory-policy allkeys-lru"
-```
+   ```bash
+   docker exec -it redis redis-cli info memory
+   docker exec -it redis redis-cli --bigkeys
+   docker exec -it redis redis-cli info keyspace   # key counts per DB
+   ```
 
-2. Monitor Redis memory: `docker exec -it redis-valkey valkey-cli info memory`
-3. Clear old keys if needed: `docker exec -it redis-valkey valkey-cli FLUSHDB`
+2. Confirm `timeout` is set (idle-connection accumulation also shows up as memory growth), per the [Critical: Redis Server Configuration](#critical-redis-server-configuration) section.
+
+3. If you must cap memory, set a `maxmemory` limit paired with **`noeviction`** so Redis fails writes loudly instead of dropping auth/session state, then alert on `used_memory`:
+
+   ```conf
+   maxmemory 512mb
+   maxmemory-policy noeviction
+   ```
+
+4. Avoid `FLUSHDB`/`FLUSHALL` on a live instance: it wipes active sessions, the revocation list, and locks. Restart the Redis container instead if you need to clear accumulated state during a maintenance window.
 
 #### Issue: "max number of clients reached" after days/weeks of operation
 
@@ -667,10 +758,10 @@ REDIS_KEY_PREFIX="openwebui-dev"
    sudo systemctl restart redis
    
    # For Docker
-   docker restart redis-valkey
+   docker restart redis
    ```
 
-**Prevention:** Always configure `timeout` to a reasonable value (e.g., 1800 seconds). The timeout only affects idle TCP connections, not user sessions — it's safe and recommended. Pair this with `REDIS_HEALTH_CHECK_INTERVAL` on the client side (see below).
+**Prevention:** Always configure `timeout` to a reasonable value (e.g., 1800 seconds). The timeout only affects idle TCP connections, not user sessions. It's safe and recommended. Pair this with `REDIS_HEALTH_CHECK_INTERVAL` on the client side (see below).
 
 #### Issue: "Connection reset by peer" errors on first request after idle period
 
@@ -679,7 +770,7 @@ REDIS_KEY_PREFIX="openwebui-dev"
 - Sporadic `redis.exceptions.ConnectionError: Connection reset by peer` in logs
 - Errors tend to appear after periods of low activity (nights, weekends)
 - The request that triggers the error fails with a 500 Internal Server Error, but subsequent requests succeed
-- More common when Redis server `timeout` is configured (which it should be — see above)
+- More common when Redis server `timeout` is configured (which it should be, see above)
 
 **Cause:** The Redis server reaped an idle connection (via its `timeout` setting), but the pooled socket in redis-py was not aware it was dead. The next request that grabbed that socket from the pool sent a command to a closed connection.
 
@@ -708,7 +799,7 @@ The health check interval should also be shorter than any firewall or load balan
 ### Additional Resources
 
 - [Redis Documentation](https://redis.io/docs)
-- [Valkey Documentation](https://valkey.io/docs/)
+- [Using Valkey](/tutorials/integrations/valkey): the open-source, drop-in Redis-compatible alternative
 - [Docker Compose Documentation](https://docs.docker.com/compose/overview/)
 - [Open WebUI Environment Variables](https://docs.openwebui.com/reference/env-configuration/)
 - [sysctl Documentation](https://man7.org/linux/man-pages/man8/sysctl.8.html)

@@ -3,7 +3,7 @@ sidebar_position: 9
 title: "App Builder"
 ---
 
-# 🏗️ Build a Complete Application
+# Build a Complete Application
 
 Describe what you want and get a working app with frontend, backend, and database.
 
@@ -19,9 +19,9 @@ Describe what you want and get a working app with frontend, backend, and databas
 5. Starts the server and tests every endpoint
 6. The port preview shows the running app
 
-{/* TODO: Screenshot — The port preview showing a polished dashboard: summary cards (Total Items: 156, Total Value: $24,350, Low Stock: 3), a bar chart by category, and a searchable product table. */}
+![The running inventory dashboard in the live port preview](/images/open-terminal-app-builder-dashboard.png)
 
-{/* TODO: Screenshot — File browser showing the project structure: app.py, database.py, templates/, static/. */}
+![The generated project structure in the file browser](/images/open-terminal-app-builder-structure.png)
 
 ## Skill content
 

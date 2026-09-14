@@ -17,7 +17,7 @@ Open WebUI permissions are **additive** (Union-based).
 
 ## Group Management
 
-Groups can be managed in the **Admin Panel > Groups** section.
+Groups can be managed in the **Admin Panel > Users > Groups** section.
 
 ### Group Configuration
 When creating or editing a group, you can configure its visibility in the system:
@@ -66,8 +66,12 @@ When editing a group, you can toggle specific permissions.
 
 You can restrict access to specific objects (like a proprietary Model or sensitive Knowledge Base) using Groups or individual user grants.
 
-1.  **Tag the Resource**: When creating/editing a Model or Knowledge Base, set its visibility to **Private** or **Restricted**.
+1.  **Tag the Resource**: When creating/editing a Model or Knowledge Base, set its visibility to **Private**.
 2.  **Grant Access**: Select the specific **Groups** or **individual users** that should have "Read" or "Write" access. The redesigned access control UI makes it easy to add multiple groups or users at once.
+
+The **Add Access** picker offers only the people and groups that do not have access yet, so the list gets shorter as you grant access and nobody can be added a second time. When there is nothing left to offer it says **No users were found.** instead of leaving a **Users** heading above an empty list.
+
+Their row in the **Access List** is where you change what someone already has. Each row carries the level (a **Read**/**Write** selector on resources that accept write grants, a **Read** badge on the ones that do not) and an **✕** that removes the grant.
 
 :::tip Knowledge Scoping for Models
 Beyond visibility, knowledge access is also scoped by model configuration. When a model has **attached knowledge bases**, it can only access those specific KBs (not all user-accessible KBs). See [Knowledge Scoping with Native Function Calling](/features/workspace/knowledge#scoped-access-keeps-things-organized) for details.
@@ -77,10 +81,25 @@ Beyond visibility, knowledge access is also scoped by model configuration. When 
 At a deeper level, resource access is managed through normalized **access grants** stored in the database. Each grant specifies:
 
 *   **Resource**: The type and ID of the resource (e.g., a specific model or knowledge base).
-*   **Principal**: Who receives access — either a **group** or an **individual user**.
-*   **Permission**: The level of access — `read` or `write`.
+*   **Principal**: Who receives access, either a **group** or an **individual user**.
+*   **Permission**: The level of access, `read` or `write`.
 
 For example, granting the "Marketing" group read access and a specific editor user write access to a model would create two separate grant entries. Public access is represented by a user grant with a wildcard (`*`) principal.
 
 *   **Read**: Users can view and use the resource.
-*   **Write**: Users can update or delete the resource.
+*   **Write**: Owner-equivalent access to that resource. Users can update or delete it, and manage its access list, which includes sharing it onward with other users and groups. Grant write only to people you would trust with the resource as if it were their own.
+
+### Previewing Access (Audit)
+
+When access grants span many groups and resources, it's easy to lose track of who can see what. Open WebUI ships an admin-only **Preview Access** view that resolves every access grant for a specific user or group and lists the result in one place, no need to crawl through individual resource pages.
+
+**For a user**: In **Admin Panel > Users**, hover over a non-admin user row and click the eye-style **Preview Access** button. The modal shows every model, knowledge base, and tool the user can read, aggregated across all of their group memberships and any direct user grants, **plus the resources they own themselves**, which they can always read without a grant existing for them. Models that have been deactivated are left out, since nobody reaches them.
+
+**For a group**: In **Admin Panel > Users > Groups**, open the group editor and use the **Preview Group Access** panel. The output is the same shape (models, knowledge, tools), scoped to just that group's grants.
+
+Both views are admin-only and read-only: they reflect what the access-grant table currently says without modifying it. Use them after a permission change to confirm the result matches intent, or as part of a periodic RBAC audit.
+
+Programmatic equivalents:
+
+- `GET /api/v1/users/{user_id}/preview`: user view (admin auth required)
+- `GET /api/v1/groups/id/{id}/preview`: group view (admin auth required)

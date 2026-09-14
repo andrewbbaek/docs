@@ -3,7 +3,7 @@ sidebar_position: 1
 title: "Migrating to 0.5.0"
 ---
 
-# 🚚 Migration Guide: Open WebUI 0.4 to 0.5
+# Migration Guide: Open WebUI 0.4 to 0.5
 
 Welcome to the Open WebUI 0.5 migration guide! If you're working on existing projects or building new ones, this guide will walk you through the key changes from **version 0.4 to 0.5** and provide an easy-to-follow roadmap for upgrading your Functions. Let's make this transition as smooth as possible! 😊
 
@@ -93,14 +93,14 @@ To clarify the special case of the main app (`webui`), here’s a simple rule of
 - For example:
     - **Before (0.4):**
       ```python
-      from open_webui.apps.webui.models import SomeModel
+      from open_webui.apps.webui.models.chats import Chats
       ```
     - **After (0.5):**
       ```python
-      from open_webui.models import SomeModel
+      from open_webui.models.chats import Chats
       ```
 
-In general, **just replace `open_webui.apps` with `open_webui.routers`—except for `webui`, which is now `open_webui.main`!**
+In general, **just replace `open_webui.apps` with `open_webui.routers`, except for `webui`, which is now `open_webui.main`!**
 
 ---
 
@@ -195,7 +195,7 @@ class Pipe:
     async def pipe(self, body: dict, __user__: dict) -> str:
         # Calls OpenAI endpoint
         user = User(**__user__)
-        body["model"] = "llama3.2:latest"
+        body["model"] = "qwen3.6:27b"
         return await ollama.generate_chat_completion(body, user)
 ```
 
@@ -224,7 +224,7 @@ class Pipe:
     ) -> str:
         # Uses the unified endpoint with updated signature
         user = User(**__user__)
-        body["model"] = "llama3.2:latest"
+        body["model"] = "qwen3.6:27b"
         return await generate_chat_completion(__request__, body, user)
 ```
 

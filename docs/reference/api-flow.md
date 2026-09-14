@@ -30,14 +30,18 @@ Before following this tutorial, ensure you have:
 
 This tutorial describes a comprehensive 6-step process that enables server-side orchestration of Open WebUI conversations while ensuring that assistant replies appear properly in the frontend UI.
 
+:::tip Looking for tool calling specifically?
+If your goal is to have the model use tools (built-in tools, workspace tools, MCP servers or a terminal) and have Open WebUI execute them server-side, see [Server-Side Tool Calling (API)](/reference/server-side-tool-calling). It builds on the chat structures documented here and adds the fields that switch tool execution on.
+:::
+
 ### Process Flow
 
 The essential steps are:
 
-1. **Create a new chat with user and assistant messages** — Initialize the conversation with the user's input and an empty assistant placeholder
-2. **Trigger the assistant completion** — Generate the actual AI response (with optional knowledge integration)
-3. **Wait for response completion** — Monitor the assistant response until fully generated
-4. **Fetch and process the final chat** — Retrieve and parse the completed conversation
+1. **Create a new chat with user and assistant messages**: Initialize the conversation with the user's input and an empty assistant placeholder
+2. **Trigger the assistant completion**: Generate the actual AI response (with optional knowledge integration)
+3. **Wait for response completion**: Monitor the assistant response until fully generated
+4. **Fetch and process the final chat**: Retrieve and parse the completed conversation
 
 This enables server-side orchestration while still making replies show up in the frontend UI exactly as if they were generated through normal user interaction.
 
@@ -73,8 +77,8 @@ The assistant message needs to exist in the chat data as a critical prerequisite
 
 The assistant message must appear in both locations:
 
-- `chat.messages[]` — The main message array (used for legacy compatibility)
-- `chat.history.messages[<assistantId>]` — The indexed message history (used by the frontend to render the tree)
+- `chat.messages[]`: The main message array (used for legacy compatibility)
+- `chat.history.messages[<assistantId>]`: The indexed message history (used by the frontend to render the tree)
 
 **Expected structure of the assistant message:**
 
@@ -85,8 +89,8 @@ The assistant message must appear in both locations:
   "content": "",
   "parentId": "<user-msg-id>",
   "childrenIds": [],
-  "model": "gpt-4o",
-  "modelName": "gpt-4o",
+  "model": "gpt-5.6-sol",
+  "modelName": "gpt-5.6-sol",
   "modelIdx": 0,
   "done": false,
   "timestamp": 1720000001
@@ -118,14 +122,14 @@ curl -X POST https://<host>/api/v1/chats/new \
   -d '{
     "chat": {
       "title": "New Chat",
-      "models": ["gpt-4o"],
+      "models": ["gpt-5.6-sol"],
       "messages": [
         {
           "id": "'"$USER_MSG_ID"'",
           "role": "user",
           "content": "Hi, what is the capital of France?",
           "timestamp": '"$TIMESTAMP"',
-          "models": ["gpt-4o"],
+          "models": ["gpt-5.6-sol"],
           "childrenIds": ["'"$ASSISTANT_MSG_ID"'"]
         },
         {
@@ -134,8 +138,8 @@ curl -X POST https://<host>/api/v1/chats/new \
           "content": "",
           "parentId": "'"$USER_MSG_ID"'",
           "childrenIds": [],
-          "model": "gpt-4o",
-          "modelName": "gpt-4o",
+          "model": "gpt-5.6-sol",
+          "modelName": "gpt-5.6-sol",
           "modelIdx": 0,
           "done": false,
           "timestamp": '"$((TIMESTAMP + 1))"'
@@ -149,7 +153,7 @@ curl -X POST https://<host>/api/v1/chats/new \
             "role": "user",
             "content": "Hi, what is the capital of France?",
             "timestamp": '"$TIMESTAMP"',
-            "models": ["gpt-4o"],
+            "models": ["gpt-5.6-sol"],
             "childrenIds": ["'"$ASSISTANT_MSG_ID"'"]
           },
           "'"$ASSISTANT_MSG_ID"'": {
@@ -158,8 +162,8 @@ curl -X POST https://<host>/api/v1/chats/new \
             "content": "",
             "parentId": "'"$USER_MSG_ID"'",
             "childrenIds": [],
-            "model": "gpt-4o",
-            "modelName": "gpt-4o",
+            "model": "gpt-5.6-sol",
+            "modelName": "gpt-5.6-sol",
             "modelIdx": 0,
             "done": false,
             "timestamp": '"$((TIMESTAMP + 1))"'
@@ -170,11 +174,11 @@ curl -X POST https://<host>/api/v1/chats/new \
   }'
 ```
 
-**Save the `id` field from the response** — this is your `chatId` for all subsequent steps.
+**Save the `id` field from the response.** This is your `chatId` for all subsequent steps.
 
 :::note
 
-The `messages[]` array at the top level is a flat list used for legacy compatibility. The `history.messages{}` object is the authoritative structure — it is a dictionary keyed by message ID that the frontend uses to build the conversation tree via `parentId` and `childrenIds`.
+The `messages[]` array at the top level is a flat list used for legacy compatibility. The `history.messages{}` object is the authoritative structure: it is a dictionary keyed by message ID that the frontend uses to build the conversation tree via `parentId` and `childrenIds`.
 
 :::
 
@@ -195,7 +199,7 @@ curl -X POST https://<host>/api/chat/completions \
         "content": "Hi, what is the capital of France?"
       }
     ],
-    "model": "gpt-4o",
+    "model": "gpt-5.6-sol",
     "stream": true,
     "background_tasks": {
       "title_generation": true,
@@ -241,7 +245,7 @@ curl -X POST https://<host>/api/chat/completions \
         "content": "Hi, what is the capital of France?"
       }
     ],
-    "model": "gpt-4o",
+    "model": "gpt-5.6-sol",
     "stream": true,
     "files": [
       {
@@ -360,7 +364,7 @@ curl -X POST https://<host>/api/v1/chats/<chatId> \
             "parentId": "'"$ASSISTANT_MSG_ID"'",
             "childrenIds": ["'"$NEW_ASSISTANT_MSG_ID"'"],
             "timestamp": '"$(date +%s)"',
-            "models": ["gpt-4o"]
+            "models": ["gpt-5.6-sol"]
           },
           "'"$NEW_ASSISTANT_MSG_ID"'": {
             "id": "'"$NEW_ASSISTANT_MSG_ID"'",
@@ -368,8 +372,8 @@ curl -X POST https://<host>/api/v1/chats/<chatId> \
             "content": "",
             "parentId": "'"$NEW_USER_MSG_ID"'",
             "childrenIds": [],
-            "model": "gpt-4o",
-            "modelName": "gpt-4o",
+            "model": "gpt-5.6-sol",
+            "modelName": "gpt-5.6-sol",
             "modelIdx": 0,
             "done": false,
             "timestamp": '"$(($(date +%s) + 1))"'
@@ -391,7 +395,7 @@ curl -X POST https://<host>/api/chat/completions \
       { "role": "assistant", "content": "The capital of France is Paris." },
       { "role": "user", "content": "Can you tell me more about Paris?" }
     ],
-    "model": "gpt-4o",
+    "model": "gpt-5.6-sol",
     "stream": true,
     "session_id": "<session-uuid>"
   }'
@@ -399,7 +403,7 @@ curl -X POST https://<host>/api/chat/completions \
 
 :::note
 
-When updating an existing chat via `POST /api/v1/chats/<chatId>`, the payload is **merged** with the existing chat data. You only need to include the fields you are changing. For `history.messages`, you can pass partial updates — existing messages that are not included in the update will be preserved.
+When updating an existing chat via `POST /api/v1/chats/<chatId>`, the payload is **merged** with the existing chat data. You only need to include the fields you are changing. For `history.messages`, you can pass partial updates: existing messages that are not included in the update will be preserved.
 
 :::
 
@@ -442,7 +446,7 @@ This cleaning process handles:
 {
   "id": "chat-uuid-12345",
   "title": "New Chat",
-  "models": ["gpt-4o"],
+  "models": ["gpt-5.6-sol"],
   "files": [],
   "tags": [],
   "params": {
@@ -456,7 +460,7 @@ This cleaning process handles:
       "role": "user",
       "content": "Hi, what is the capital of France?",
       "timestamp": 1720000000,
-      "models": ["gpt-4o"],
+      "models": ["gpt-5.6-sol"],
       "childrenIds": ["assistant-msg-id"]
     },
     {
@@ -465,8 +469,8 @@ This cleaning process handles:
       "content": "",
       "parentId": "user-msg-id",
       "childrenIds": [],
-      "model": "gpt-4o",
-      "modelName": "gpt-4o",
+      "model": "gpt-5.6-sol",
+      "modelName": "gpt-5.6-sol",
       "modelIdx": 0,
       "done": false,
       "timestamp": 1720000001
@@ -480,7 +484,7 @@ This cleaning process handles:
         "role": "user",
         "content": "Hi, what is the capital of France?",
         "timestamp": 1720000000,
-        "models": ["gpt-4o"],
+        "models": ["gpt-5.6-sol"],
         "childrenIds": ["assistant-msg-id"]
       },
       "assistant-msg-id": {
@@ -489,8 +493,8 @@ This cleaning process handles:
         "content": "",
         "parentId": "user-msg-id",
         "childrenIds": [],
-        "model": "gpt-4o",
-        "modelName": "gpt-4o",
+        "model": "gpt-5.6-sol",
+        "modelName": "gpt-5.6-sol",
         "modelIdx": 0,
         "done": false,
         "timestamp": 1720000001
@@ -513,7 +517,7 @@ This cleaning process handles:
       "content": "Hi, what is the capital of France?"
     }
   ],
-  "model": "gpt-4o",
+  "model": "gpt-5.6-sol",
   "stream": true,
   "background_tasks": {
     "title_generation": true,
@@ -564,7 +568,7 @@ This cleaning process handles:
       "role": "user",
       "content": "Hi, what is the capital of France?",
       "timestamp": 1720000000,
-      "models": ["gpt-4o"],
+      "models": ["gpt-5.6-sol"],
       "childrenIds": ["assistant-msg-id"]
     },
     "assistant-msg-id": {
@@ -573,8 +577,8 @@ This cleaning process handles:
       "content": "The capital of France is Paris.",
       "parentId": "user-msg-id",
       "childrenIds": [],
-      "model": "gpt-4o",
-      "modelName": "gpt-4o",
+      "model": "gpt-5.6-sol",
+      "modelName": "gpt-5.6-sol",
       "modelIdx": 0,
       "timestamp": 1720000001
     }
@@ -592,7 +596,7 @@ This cleaning process handles:
   "role": "user",
   "content": "Hi, what is the capital of France?",
   "timestamp": 1720000000,
-  "models": ["gpt-4o"],
+  "models": ["gpt-5.6-sol"],
   "childrenIds": ["assistant-msg-id"]
 }
 ```
@@ -606,8 +610,8 @@ This cleaning process handles:
   "content": "The capital of France is Paris.",
   "parentId": "user-msg-id",
   "childrenIds": [],
-  "model": "gpt-4o",
-  "modelName": "gpt-4o",
+  "model": "gpt-5.6-sol",
+  "modelName": "gpt-5.6-sol",
   "modelIdx": 0,
   "done": true,
   "timestamp": 1720000001
@@ -625,14 +629,14 @@ This cleaning process handles:
   "title": "New Chat",
   "chat": {
     "title": "New Chat",
-    "models": ["gpt-4o"],
+    "models": ["gpt-5.6-sol"],
     "messages": [
       {
         "id": "user-msg-id",
         "role": "user",
         "content": "Hi, what is the capital of France?",
         "timestamp": 1720000000,
-        "models": ["gpt-4o"],
+        "models": ["gpt-5.6-sol"],
         "childrenIds": ["assistant-msg-id"]
       },
       {
@@ -641,8 +645,8 @@ This cleaning process handles:
         "content": "",
         "parentId": "user-msg-id",
         "childrenIds": [],
-        "model": "gpt-4o",
-        "modelName": "gpt-4o",
+        "model": "gpt-5.6-sol",
+        "modelName": "gpt-5.6-sol",
         "modelIdx": 0,
         "done": false,
         "timestamp": 1720000001
@@ -656,7 +660,7 @@ This cleaning process handles:
           "role": "user",
           "content": "Hi, what is the capital of France?",
           "timestamp": 1720000000,
-          "models": ["gpt-4o"],
+          "models": ["gpt-5.6-sol"],
           "childrenIds": ["assistant-msg-id"]
         },
         "assistant-msg-id": {
@@ -665,8 +669,8 @@ This cleaning process handles:
           "content": "",
           "parentId": "user-msg-id",
           "childrenIds": [],
-          "model": "gpt-4o",
-          "modelName": "gpt-4o",
+          "model": "gpt-5.6-sol",
+          "modelName": "gpt-5.6-sol",
           "modelIdx": 0,
           "done": false,
           "timestamp": 1720000001
@@ -687,7 +691,7 @@ This cleaning process handles:
   "id": "chat-uuid-12345",
   "title": "Capital of France Discussion",
   "chat": {
-    "models": ["gpt-4o"],
+    "models": ["gpt-5.6-sol"],
     "history": {
       "currentId": "assistant-msg-id",
       "messages": {
@@ -696,7 +700,7 @@ This cleaning process handles:
           "role": "user",
           "content": "Hi, what is the capital of France?",
           "timestamp": 1720000000,
-          "models": ["gpt-4o"],
+          "models": ["gpt-5.6-sol"],
           "childrenIds": ["assistant-msg-id"]
         },
         "assistant-msg-id": {
@@ -705,8 +709,8 @@ This cleaning process handles:
           "content": "The capital of France is Paris. Paris is not only the capital but also the most populous city in France, known for its iconic landmarks such as the Eiffel Tower, the Louvre Museum, and Notre-Dame Cathedral.",
           "parentId": "user-msg-id",
           "childrenIds": [],
-          "model": "gpt-4o",
-          "modelName": "gpt-4o",
+          "model": "gpt-5.6-sol",
+          "modelName": "gpt-5.6-sol",
           "modelIdx": 0,
           "done": true,
           "timestamp": 1720000001
@@ -736,12 +740,12 @@ This cleaning process handles:
 
 ```json
 {
-  "id": "gpt-4o",
-  "name": "GPT-4 Optimized",
-  "model": "gpt-4o",
-  "base_model_id": "gpt-4o",
+  "id": "gpt-5.6-sol",
+  "name": "GPT-5.6 Sol",
+  "model": "gpt-5.6-sol",
+  "base_model_id": "gpt-5.6-sol",
   "meta": {
-    "description": "Most advanced GPT-4 model optimized for performance",
+    "description": "OpenAI's frontier model for complex professional work",
     "capabilities": ["text", "vision", "function_calling"],
     "context_length": 128000,
     "max_output_tokens": 4096
@@ -763,16 +767,16 @@ This cleaning process handles:
 
 **Chat Creation - Required Fields:**
 
-- `title` — Chat title (string)
-- `models` — Array of model names (string[])
-- `messages` — Initial message array
-- `history` — Message tree with `currentId` and `messages` map
+- `title`: Chat title (string)
+- `models`: Array of model names (string[])
+- `messages`: Initial message array
+- `history`: Message tree with `currentId` and `messages` map
 
 **Chat Creation - Optional Fields:**
 
-- `files` — Knowledge files for RAG (defaults to empty array)
-- `tags` — Chat tags (defaults to empty array)
-- `params` — Model parameters (defaults to empty object)
+- `files`: Knowledge files for RAG (defaults to empty array)
+- `tags`: Chat tags (defaults to empty array)
+- `params`: Model parameters (defaults to empty object)
 
 **Message Structure - User Message:**
 
@@ -786,20 +790,20 @@ This cleaning process handles:
 
 **ChatCompletionsRequest - Required Fields:**
 
-- `chat_id` — Target chat ID
-- `id` — Assistant message ID
-- `messages` — Array of ChatCompletionMessage
-- `model` — Model identifier
-- `session_id` — Session identifier (caller-generated UUID)
+- `chat_id`: Target chat ID
+- `id`: Assistant message ID
+- `messages`: Array of ChatCompletionMessage
+- `model`: Model identifier
+- `session_id`: Session identifier (caller-generated UUID)
 
 **ChatCompletionsRequest - Optional Fields:**
 
-- `stream` — Enable streaming (defaults to false)
-- `background_tasks` — Control automatic tasks
-- `features` — Enable/disable features
-- `variables` — Template variables
-- `filter_ids` — Pipeline filters
-- `files` — Knowledge collections for RAG
+- `stream`: Enable streaming (defaults to false)
+- `background_tasks`: Control automatic tasks
+- `features`: Enable/disable features
+- `variables`: Template variables
+- `filter_ids`: Pipeline filters
+- `files`: Knowledge collections for RAG
 
 #### Field Constraints
 
@@ -818,7 +822,7 @@ This cleaning process handles:
 **Model Names:**
 
 - Must match available models in your Open WebUI instance
-- Common examples: `gpt-4o`, `gpt-3.5-turbo`, `claude-3-sonnet`
+- Common examples: `gpt-5.6-sol`, `gpt-5.6-luna`, `claude-sonnet-5`
 
 **Session IDs:**
 
@@ -834,10 +838,10 @@ This cleaning process handles:
 
 - This workflow is compatible with Open WebUI + backend orchestration scenarios
 - **Critical: Use `currentId` (camelCase)** in the history object, not `current_id` (snake_case)
-- **Critical: Include `childrenIds`** on every message — the frontend uses this to build the message tree
+- **Critical: Include `childrenIds`** on every message. The frontend uses this to build the message tree
 - No frontend code changes are required for this approach
 - The `stream: true` parameter allows for real-time response streaming if needed
-- `outlet()` filters run inline during `/api/chat/completions` when `chat_id` and `id` (message ID) are present in the request body. Pure API callers that omit these fields will have outlet silently skipped — see [Filter Functions: Enabling Outlet for Pure API Callers](/features/extensibility/plugin/functions/filter#enabling-outlet-for-pure-api-callers) for a workaround. The separate `/api/chat/completed` endpoint is deprecated and no longer needed
+- `outlet()` filters run inline during `/api/chat/completions`, on both the streaming and non-streaming paths, controlled by [`ENABLE_API_OUTLET_FILTERS`](/reference/env-configuration#enable_api_outlet_filters) (default `True`). Neither a `chat_id` nor a message `id` is required in the request body; with neither present, the conversation is reconstructed from the `messages` you sent plus the assistant reply, and a message ID is generated for it. Inline execution does not rewrite the HTTP response body, so the filtered payload never comes back to an API caller over HTTP. The separate `/api/chat/completed` endpoint is deprecated and kept for backward compatibility, and it remains the way to have the filtered payload returned to you. See [Filter Behavior with API Requests](/features/extensibility/plugin/functions/filter#filter-behavior-with-api-requests) for the full picture
 - Background tasks like title generation can be controlled via the `background_tasks` object
 - Session IDs help maintain conversation context across requests
 - **Knowledge Integration:** Use the `files` array to include knowledge collections for RAG capabilities
@@ -857,17 +861,17 @@ This cleaning process handles:
 
 Use the Open WebUI backend APIs to:
 
-1. **Start a chat with messages** — Create the conversation with user input and an empty assistant placeholder (including proper `childrenIds` and `currentId`)
-2. **Trigger a reply** — Generate the AI response (with optional knowledge integration)
-3. **Monitor completion** — Wait for the assistant response using streaming or polling
-4. **Fetch the final chat** — Retrieve and parse the completed conversation
+1. **Start a chat with messages**: Create the conversation with user input and an empty assistant placeholder (including proper `childrenIds` and `currentId`)
+2. **Trigger a reply**: Generate the AI response (with optional knowledge integration)
+3. **Monitor completion**: Wait for the assistant response using streaming or polling
+4. **Fetch the final chat**: Retrieve and parse the completed conversation
 
 **Enhanced Capabilities:**
 
-- **RAG Integration** — Include knowledge collections for context-aware responses
-- **Asynchronous Processing** — Handle long-running AI operations with streaming or polling
-- **Response Parsing** — Clean and validate JSON responses from the assistant
-- **Session Management** — Maintain conversation context across requests
+- **RAG Integration**: Include knowledge collections for context-aware responses
+- **Asynchronous Processing**: Handle long-running AI operations with streaming or polling
+- **Response Parsing**: Clean and validate JSON responses from the assistant
+- **Session Management**: Maintain conversation context across requests
 
 This enables backend-controlled workflows that still appear properly in the Web UI frontend chat interface, providing seamless integration between programmatic control and user experience.
 

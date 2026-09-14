@@ -1,9 +1,21 @@
 ---
 sidebar_position: 150
-title: "📖 Reference"
+title: "Reference"
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
 # Reference
+
+<ThemedImage
+  alt="Open WebUI Reference: canonical technical map for environment variables, API endpoints, HTTPS, monitoring, and network diagrams"
+  sources={{
+    light: useBaseUrl('/images/banners/reference-light.svg'),
+    dark: useBaseUrl('/images/banners/reference-dark.svg'),
+  }}
+  style={{ width: '100%', margin: '0.25rem 0 1.75rem' }}
+/>
 
 **The technical details behind every knob, endpoint, and configuration option.**
 
@@ -15,7 +27,7 @@ Open WebUI is highly configurable. This section is the canonical source of truth
 
 **Every flag, path, and secret Open WebUI reads at startup, in one place.**
 
-Over 200 environment variables control authentication, model routing, storage, logging, and more. Understand `PersistentConfig` behavior, troubleshoot ignored settings, and find the exact variable you need.
+Over 200 environment variables control authentication, model routing, storage, logging, and more. Understand `ConfigVar` behavior, troubleshoot ignored settings, and find the exact variable you need.
 
 | | |
 | :--- | :--- |
@@ -44,6 +56,22 @@ Open WebUI exposes a full REST API authenticated via Bearer tokens or JWTs. Use 
 | 🔧 **Filters (inlet/stream/outlet)** | Inlet, stream, and outlet hooks for every request |
 
 [**Explore the API →**](/reference/api-endpoints)
+
+---
+
+## 🤖 Server-Side Tool Calling
+
+**Send a prompt, have Open WebUI run the tools, get the finished answer back.**
+
+Every request you need to make the model call built-in tools, workspace tools, MCP servers and Open Terminal on the server, with your user's own permissions. Streaming and non-streaming, with and without saving the chat, ending in a reusable script.
+
+| | |
+| :--- | :--- |
+| 🔁 **Full agentic loop** | Multi-round native tool calling, result read back from the chat |
+| ⚡ **Single-request mode** | One HTTP call in, one completion out, tool results already applied |
+| 🧭 **Field-by-field** | `chat_id`, `id`, `session_id`, `tool_ids`, `terminal_id`, `features` |
+
+[**Run tools server-side →**](/reference/server-side-tool-calling)
 
 ---
 

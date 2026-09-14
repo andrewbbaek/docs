@@ -28,18 +28,22 @@ You cannot have Microsoft **and** Google as OIDC providers simultaneously.
 
 | Environment Variable                  | Default   | Description                                                                                                                             |
 |---------------------------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| `WEBUI_URL`                           | —                  | **Required.** Your public WebUI address, e.g., `http://localhost:8080`. |
-| `ENABLE_OAUTH_PERSISTENT_CONFIG`      | `true`             | Persist OAuth config to the database; set to `false` for stateless/containerized environments. |
+| `WEBUI_URL`                           | *(none)*           | **Required.** Your public WebUI address, e.g., `http://localhost:8080`. |
+| `ENABLE_OAUTH_PERSISTENT_CONFIG`      | `false`            | Load OAuth settings from the database (when persistent config is on). Default `false` keeps environment variables authoritative for OAuth and shows the OAuth section of the Admin Panel read-only; set `true` to manage OAuth in the Admin Panel. |
+| `ENABLE_OAUTH`                        | `true`             | Master switch for provider sign-in. Set `false` to turn SSO off while keeping the client ID, secret and endpoints configured. Also a toggle in **Settings > Admin > Authentication**, next to the LDAP one. |
 | `ENABLE_OAUTH_SIGNUP`                 | `false`            | Allows account creation upon OAuth login (separate from `ENABLE_SIGNUP`). |
+| `OAUTH_AUTO_REDIRECT`                 | `false`            | Send unauthenticated users at `/auth` straight to the provider login, skipping the "Continue with SSO" screen. Requires exactly one provider, `ENABLE_LOGIN_FORM=false` and no LDAP; visit `/auth?form=true` for the local login form. |
 | `OAUTH_MERGE_ACCOUNTS_BY_EMAIL`       | `false`            | Merge OAuth logins based on matching email (caution: can be insecure if provider doesn't verify emails). |
 | `OAUTH_UPDATE_PICTURE_ON_LOGIN`       | `false`             | Update user profile pictures from OAuth provider with each login. |
 | `OAUTH_PICTURE_CLAIM`                 | `picture`          | Field in the claim containing the profile picture. Set to empty string to disable picture updates (users receive default icon).|
+| `ENABLE_PROFILE_IMAGE_URL_FORWARDING` | `true`             | When `true`, the backend issues a `302` redirect from `/api/v1/users/{id}/profile/image` to whatever external URL the IdP wrote into `profile_image_url`. Each browser then loads the avatar directly from that origin, leaking client IP, User-Agent, and Referer headers. Set to `false` to suppress the redirect; the IdP-supplied URL is still stored, but Open WebUI serves the bundled default image instead. **Recommendation:** disable unless your IdP returns avatars as `data:` URIs (which Open WebUI persists locally and is unaffected) or you accept the leak in exchange for showing IdP-hosted avatars. See [`ENABLE_PROFILE_IMAGE_URL_FORWARDING`](/reference/env-configuration#enable_profile_image_url_forwarding) for full semantics. |
 | `WEBUI_AUTH_SIGNOUT_REDIRECT_URL`     | *empty*            | Redirect users to this URL after signout. E.g., `https://your-company.com/logout-success`                                      |
-| `WEBUI_SECRET_KEY`                    | *empty*            | MUST be set - especially in clustered environments. Otherwise session issues and weird OAuth issues will occur                 |
+| `WEBUI_SECRET_KEY`                    | *empty*            | MUST be set, especially in clustered environments. Otherwise session issues and weird OAuth issues will occur                 |
 | `OAUTH_SESSION_TOKEN_ENCRYPTION_KEY`  | `WEBUI_SECRET_KEY` | A secret key for encrypting OAuth tokens stored on the server. Must be shared across all instances in a cluster. |
-| `OAUTH_CLIENT_INFO_ENCRYPTION_KEY`    | `WEBUI_SECRET_KEY` | A secret key for encrypting OAuth client information stored on the server - used for OAuth 2.1 authentication for MCP servers. |
+| `OAUTH_CLIENT_INFO_ENCRYPTION_KEY`    | `WEBUI_SECRET_KEY` | A secret key for encrypting OAuth client information stored on the server, used for OAuth 2.1 authentication for MCP servers. |
 | `ENABLE_OAUTH_ID_TOKEN_COOKIE`        | `true`             | For backward compatibility. Controls if the legacy `oauth_id_token` cookie is set. Recommended to set to `false`. |
-| `ENABLE_OAUTH_TOKEN_EXCHANGE`         | `false`            | Enables the token exchange endpoint for external apps to exchange OAuth tokens for Open WebUI JWTs. |
+| `ENABLE_OAUTH_TOKEN_EXCHANGE`         | `false`            | Enables the token exchange endpoint for external apps to exchange OAuth tokens for Open WebUI JWTs. Pair it with `OAUTH_TOKEN_EXCHANGE_TRUSTED_CLIENT_IDS`. |
+| `OAUTH_TOKEN_EXCHANGE_TRUSTED_CLIENT_IDS` | *empty*        | Comma-separated OAuth client IDs whose tokens the exchange endpoint accepts. Empty performs no client check, accepting any token the provider validates. |
 | `ENABLE_OAUTH_BACKCHANNEL_LOGOUT`     | `false`            | Enables OIDC Back-Channel Logout endpoint (`POST /oauth/backchannel-logout`) for IdP-initiated logout. Requires Redis for JWT revocation. |
 | `OAUTH_MAX_SESSIONS_PER_USER`         | `10`               | Maximum concurrent OAuth sessions per user per provider. Prevents unbounded growth while allowing multi-device usage. |
 
@@ -49,13 +53,29 @@ You cannot have Microsoft **and** Google as OIDC providers simultaneously.
 
 1. **WEBUI_URL Must Be Set First**: Configure `WEBUI_URL` in the Admin Panel before enabling OAuth, as it's used for redirect URIs.
 
-2. **Persistent Config Behavior**: When `ENABLE_OAUTH_PERSISTENT_CONFIG=true` (default), OAuth settings are stored in the database after first launch. To change environment variables after initial setup, either:
+2. **Persistent Config Behavior**: When `ENABLE_OAUTH_PERSISTENT_CONFIG=true`, OAuth settings are stored in the database after first launch. To change environment variables after initial setup, either:
    - Set `ENABLE_OAUTH_PERSISTENT_CONFIG=false` to always read from environment variables
    - Update settings through the Admin Panel instead of environment variables
+
+   With the default `ENABLE_OAUTH_PERSISTENT_CONFIG=false`, the **OAuth / OIDC** section of **Settings > Admin > Authentication** is read-only, so the Admin Panel is not an option until you set the variable to `true`. See [Read-only OAuth settings in the Admin Panel](#read-only-oauth-settings-in-the-admin-panel).
 
 3. **Required Variables**: Always verify you're using the exact variable names from the [environment configuration documentation](https://docs.openwebui.com/reference/env-configuration/). Common mistakes include using non-existent variables like `OIDC_CONFIG`.
 
 :::
+
+### Read-only OAuth settings in the Admin Panel
+
+`ENABLE_OAUTH_PERSISTENT_CONFIG` decides where the OAuth settings live, and the Admin Panel follows it. With the default `false`, they are read from your environment variables on every start, so the **OAuth / OIDC** section of **Settings > Admin > Authentication** is shown read-only:
+
+- All values remain visible, and the section is dimmed with every field and switch inert, including the **OAuth / OIDC** master toggle.
+- A note above the section explains that the settings are read from environment variables and names `ENABLE_OAUTH_PERSISTENT_CONFIG`.
+- Saving the Authentication page leaves the OAuth settings untouched. Other sections on that page, such as LDAP, save as usual.
+
+This replaces the older behavior, where the fields were editable, a save appeared to succeed and the values reverted to the environment on the next restart.
+
+Set `ENABLE_OAUTH_PERSISTENT_CONFIG=true` to make the section editable and have saved values persist in the database. To keep the environment authoritative, leave it at `false` and change your environment variables instead, then restart.
+
+`ENABLE_PERSISTENT_CONFIG` is the one in charge. When it is `false`, nothing is saved to the database whatever `ENABLE_OAUTH_PERSISTENT_CONFIG` says, so the OAuth variable then only decides whether the section can be typed into, not whether the values survive a restart. Both must be `true` to manage OAuth from the Admin Panel.
 
 ### Server-Side OAuth Session Management
 
@@ -69,6 +89,8 @@ To solve issues related to large tokens (e.g., with AD FS group claims exceeding
 4. **Automatic Refresh:** When a token is required by a downstream service (like a tool or an OpenAI-compatible endpoint), the backend uses the `oauth_session_id` to retrieve the tokens. If the tokens are expired or close to expiring, the system automatically uses the stored `refresh_token` to fetch new ones from the provider before forwarding them. This ensures services always receive a valid token and prevents silent failures.
 5. **Clean Token Access:** This architecture provides a clean and reliable way for internal tools and other services to access user tokens without fragile cookie-scraping.
 
+**When a provider does not say when the token expires:** most return `expires_in` or `expires_at`, and Open WebUI trusts whichever it gets. If neither is present, what happens next depends on whether the response included a refresh token. With one, the token is assumed to last an hour and is refreshed on that basis, and a warning names the provider in the logs. Without one there is nothing to refresh with, so inventing a short expiry would only end the session for no reason; the token is treated as non-expiring instead and the session survives. This is why a provider that issues long-lived tokens and no refresh token no longer drops its users after an hour.
+
 This system is enabled by default but can be fine-tuned with the environment variables detailed above.
 
 For more information, check out the [environment variable docs page](https://docs.openwebui.com/reference/env-configuration/).
@@ -79,7 +101,15 @@ Open WebUI also supports **OAuth Token Exchange**, allowing external application
 
 **Example use case:** A CLI tool that has obtained an OAuth access token from your identity provider can exchange it for an Open WebUI token to make API calls to Open WebUI.
 
-To enable this feature, set `ENABLE_OAUTH_TOKEN_EXCHANGE=true`. See the [`ENABLE_OAUTH_TOKEN_EXCHANGE`](/reference/env-configuration#enable_oauth_token_exchange) environment variable documentation for details on usage, request/response examples, and security considerations.
+To enable this feature, set `ENABLE_OAUTH_TOKEN_EXCHANGE=true` and list the OAuth clients you trust in `OAUTH_TOKEN_EXCHANGE_TRUSTED_CLIENT_IDS`. See the [`ENABLE_OAUTH_TOKEN_EXCHANGE`](/reference/env-configuration#enable_oauth_token_exchange) environment variable documentation for details on usage, request/response examples, and security considerations.
+
+:::danger
+
+A successful exchange issues a session as the user the token identifies, with that user's role. Because a provider's userinfo endpoint cannot reveal which OAuth client a token was issued to, the endpoint must be told which clients you trust. With `OAUTH_TOKEN_EXCHANGE_TRUSTED_CLIENT_IDS` unset the issuing client is not checked at all, so a token from any application your users authorise is accepted; with it set, any holder of a token from a listed client can obtain a session as the corresponding user. `OAUTH_ALLOWED_DOMAINS` is still enforced here, but it does not help, because an impersonated user is a legitimate member of an allowed domain.
+
+Resolving the issuing client requires RFC 7662 token introspection, which Google, Microsoft Entra ID, GitHub and Feishu do not implement, so the restriction cannot be applied on those providers.
+
+:::
 
 ### OIDC Back-Channel Logout
 
@@ -111,13 +141,13 @@ The allowed redirect URI should include `<open-webui>/oauth/google/callback`.
 
 The following environment variables are required:
 
-1. `GOOGLE_CLIENT_ID` - Google OAuth client ID
-1. `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
-1. `OPENID_PROVIDER_URL` - Must be set for logout to work properly. (Usually to `https://accounts.google.com/.well-known/openid-configuration`)
+1. `GOOGLE_CLIENT_ID`: Google OAuth client ID
+1. `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+1. `OPENID_PROVIDER_URL`: Must be set for logout to work properly. (Usually to `https://accounts.google.com/.well-known/openid-configuration`)
 
 Optional Google-specific setting:
 
-1. `GOOGLE_OAUTH_AUTHORIZE_PARAMS` - JSON object for extra Google `/authorize` params (for example `prompt`, `login_hint`, `hd`).
+1. `GOOGLE_OAUTH_AUTHORIZE_PARAMS`: JSON object for extra Google `/authorize` params (for example `prompt`, `login_hint`, `hd`).
 
 ```bash
 GOOGLE_OAUTH_AUTHORIZE_PARAMS={"prompt":"consent","login_hint":"user@example.com","hd":"example.com"}
@@ -132,15 +162,15 @@ Support for Microsoft OAuth is currently limited to a single tenant, that is a s
 
 The following environment variables are required:
 
-1. `MICROSOFT_CLIENT_ID` - Microsoft OAuth client ID
-1. `MICROSOFT_CLIENT_SECRET` - Microsoft OAuth client secret
-1. `MICROSOFT_CLIENT_TENANT_ID` - Microsoft tenant ID - use `9188040d-6c67-4c5b-b112-36a304b66dad` for personal accounts
-1. `MICROSOFT_REDIRECT_URI` - The redirect URI configured in your Microsoft OAuth application. This must be set to `<open-webui>/oauth/microsoft/callback`.
-1. `OPENID_PROVIDER_URL` - Must be set for logout to work properly.
+1. `MICROSOFT_CLIENT_ID`: Microsoft OAuth client ID
+1. `MICROSOFT_CLIENT_SECRET`: Microsoft OAuth client secret
+1. `MICROSOFT_CLIENT_TENANT_ID`: Microsoft tenant ID, use `9188040d-6c67-4c5b-b112-36a304b66dad` for personal accounts
+1. `MICROSOFT_REDIRECT_URI`: The redirect URI configured in your Microsoft OAuth application. This must be set to `<open-webui>/oauth/microsoft/callback`.
+1. `OPENID_PROVIDER_URL`: Must be set for logout to work properly.
 
 #### Token Refresh (`offline_access`)
 
-By default, Microsoft's identity platform only returns an `access_token`, which expires after approximately 1 hour. To enable automatic token refresh — preventing users from needing to re-authenticate — add the `offline_access` scope:
+By default, Microsoft's identity platform only returns an `access_token`, which expires after approximately 1 hour. To enable automatic token refresh (preventing users from needing to re-authenticate) add the `offline_access` scope:
 
 ```
 MICROSOFT_OAUTH_SCOPE=openid email profile offline_access
@@ -173,7 +203,7 @@ No additional configuration is required in Microsoft Entra ID. The `offline_acce
 
 :::tip Role Mapping with Microsoft Entra ID
 
-If you use Entra ID **app roles** to control who gets `admin` vs `user` access in Open WebUI, you also need to configure [OAuth Role Management](#oauth-role-management) below. In particular, make sure you set `OAUTH_ALLOWED_ROLES` and `OAUTH_ADMIN_ROLES` in addition to `ENABLE_OAUTH_ROLE_MANAGEMENT=true` — otherwise all users will be created with the default role regardless of their Entra ID assignment.
+If you use Entra ID **app roles** to control who gets `admin` vs `user` access in Open WebUI, you also need to configure [OAuth Role Management](#oauth-role-management) below. In particular, make sure you set `OAUTH_ALLOWED_ROLES` and `OAUTH_ADMIN_ROLES` in addition to `ENABLE_OAUTH_ROLE_MANAGEMENT=true`. Otherwise all users will be created with the default role regardless of their Entra ID assignment.
 
 :::
 
@@ -184,8 +214,8 @@ The allowed redirect URI should include `<open-webui>/oauth/github/callback`.
 
 The following environment variables are required:
 
-1. `GITHUB_CLIENT_ID` - GitHub OAuth App Client ID
-1. `GITHUB_CLIENT_SECRET` - GitHub OAuth App Client Secret
+1. `GITHUB_CLIENT_ID`: GitHub OAuth App Client ID
+1. `GITHUB_CLIENT_SECRET`: GitHub OAuth App Client Secret
 
 ### OIDC
 
@@ -196,20 +226,28 @@ The allowed redirect URI should include `<open-webui>/oauth/oidc/callback`.
 
 The following environment variables are used:
 
-1. `OAUTH_CLIENT_ID` - OIDC client ID
-1. `OAUTH_CLIENT_SECRET` - OIDC client secret
-1. `OPENID_PROVIDER_URL` - **Required.** OIDC well known URL, for example `https://accounts.google.com/.well-known/openid-configuration`
-1. `OAUTH_PROVIDER_NAME` - Name of the provider to show on the UI, defaults to SSO
-1. `OAUTH_SCOPES` - Scopes to request. Defaults to `openid email profile`
-1. `OPENID_REDIRECT_URI` - The redirect URI configured in your OIDC application. This must be set to `<open-webui>/oauth/oidc/callback`.
-1. `OAUTH_AUDIENCE` - Optional `audience` value that will be passed to the oauth provider's authorization endpoint as an additional query parameter.
+1. `OAUTH_CLIENT_ID`: OIDC client ID
+1. `OAUTH_CLIENT_SECRET`: OIDC client secret
+1. `OPENID_PROVIDER_URL`: **Required.** OIDC well known URL, for example `https://accounts.google.com/.well-known/openid-configuration`
+1. `OAUTH_PROVIDER_NAME`: Name of the provider to show on the UI, defaults to SSO
+1. `OAUTH_SCOPES`: Scopes to request. Defaults to `openid email profile`
+1. `OPENID_REDIRECT_URI`: The redirect URI configured in your OIDC application. This must be set to `<open-webui>/oauth/oidc/callback`.
+1. `OAUTH_AUDIENCE`: Optional `audience` value that will be passed to the oauth provider's authorization endpoint as an additional query parameter.
 
 :::warning
 
 **Common OIDC Mistakes:**
 - Using non-existent environment variables like `OIDC_CONFIG` or `WEBUI_OIDC_CLIENT_ID`
 - Forgetting to set `OPENID_PROVIDER_URL` (this is mandatory for OIDC)
-- Using incorrect redirect URI format - must be exactly `<your-domain>/oauth/oidc/callback`
+- Using incorrect redirect URI format, must be exactly `<your-domain>/oauth/oidc/callback`
+
+:::
+
+:::info Providers that add their own parameters to the ID token
+
+Some providers add a vendor-specific parameter of their own to the header of the ID token they issue. Open WebUI ignores parameters it does not recognize there, so sign-in through such a provider completes normally, and the token's signature and signing algorithm are still verified as before.
+
+Earlier versions rejected the whole token instead, so the login ended at the callback with `The email or password provided is incorrect` in the browser and `Unsupported {'app_id'} in header` in the server log. If you see that pair, update Open WebUI.
 
 :::
 
@@ -222,14 +260,16 @@ Any OAuth provider that can be configured to return roles in the access token ca
 To use this feature set `ENABLE_OAUTH_ROLE_MANAGEMENT` to `true`.
 You can configure the following environment variables to match the roles returned by the OAuth provider:
 
-1. `OAUTH_ROLES_CLAIM` - The claim that contains the roles. Defaults to `roles`. Can also be nested, for example `user.roles`.
-1. `OAUTH_ALLOWED_ROLES` - A comma-separated list of roles that are allowed to log in (receive open webui role `user`).
-1. `OAUTH_ADMIN_ROLES` - A comma-separated list of roles that are allowed to log in as an admin (receive open webui role `admin`).
-1. `OAUTH_ROLES_SEPARATOR` - Allows specifying an alternative separator for the `OAUTH_*_ROLES` variables. If the claim is a string and it contains the separator, it will be also split by that separator.
+1. `OAUTH_ROLES_CLAIM`: The claim that contains the roles. Defaults to `roles`. Can also be nested, for example `user.roles`.
+1. `OAUTH_ALLOWED_ROLES`: A comma-separated list of roles that are allowed to log in (receive open webui role `user`). Use `*` as a wildcard to allow any role.
+1. `OAUTH_ADMIN_ROLES`: A comma-separated list of roles that are allowed to log in as an admin (receive open webui role `admin`).
+1. `OAUTH_ROLES_SEPARATOR`: Allows specifying an alternative separator for the `OAUTH_*_ROLES` variables. If the claim is a string and it contains the separator, it will be also split by that separator.
 
 :::info
 
 If changing the role of a logged in user, they will need to log out and log back in to receive the new role.
+
+When that login does change the role, Open WebUI ends the account's other live WebSocket connections, so an old tab cannot keep acting on the previous role. Those browsers reconnect and re-authenticate on their own. See [When a Role Change Takes Effect](/features/authentication-access/rbac/roles#when-a-role-change-takes-effect).
 
 :::
 
@@ -240,9 +280,9 @@ To enable this synchronization, set `ENABLE_OAUTH_GROUP_MANAGEMENT` to `true`.
 
 You can configure the following environment variables:
 
-1. `OAUTH_GROUP_CLAIM` - The claim in the ID/access token containing the user's group memberships. Defaults to `groups`. Can also be nested, for example `user.memberOf`. Required if `ENABLE_OAUTH_GROUP_MANAGEMENT` is true.
-1. `ENABLE_OAUTH_GROUP_CREATION` - If `true` (and `ENABLE_OAUTH_GROUP_MANAGEMENT` is also `true`), Open WebUI will perform **Just-in-Time (JIT) group creation**. This means it will automatically create groups during OAuth login if they are present in the user's OAuth claims but do not yet exist in the system. Defaults to `false`. If `false`, only memberships in *existing* Open WebUI groups will be managed.
-1. `OAUTH_GROUP_DEFAULT_SHARE` - Controls the default sharing permission for groups created via JIT group creation. Defaults to `true` (share with anyone). Set to `members` to restrict sharing to group members only, or `false` to disable sharing entirely. Only applies when `ENABLE_OAUTH_GROUP_CREATION` is enabled.
+1. `OAUTH_GROUP_CLAIM`: The claim in the ID/access token containing the user's group memberships. Defaults to `groups`. Can also be nested, for example `user.memberOf`. Required if `ENABLE_OAUTH_GROUP_MANAGEMENT` is true.
+1. `ENABLE_OAUTH_GROUP_CREATION`: If `true` (and `ENABLE_OAUTH_GROUP_MANAGEMENT` is also `true`), Open WebUI will perform **Just-in-Time (JIT) group creation**. This means it will automatically create groups during OAuth login if they are present in the user's OAuth claims but do not yet exist in the system. Defaults to `false`. If `false`, only memberships in *existing* Open WebUI groups will be managed.
+1. `OAUTH_GROUP_DEFAULT_SHARE`: Controls the default sharing permission for groups created via JIT group creation. Defaults to `true` (share with anyone). Set to `members` to restrict sharing to group members only, or `false` to disable sharing entirely. Only applies when `ENABLE_OAUTH_GROUP_CREATION` is enabled.
 
 :::warning
 
@@ -292,6 +332,8 @@ For example, setting `WEBUI_AUTH_TRUSTED_EMAIL_HEADER=X-User-Email` and passing 
 Optionally, you can also define the `WEBUI_AUTH_TRUSTED_NAME_HEADER` to determine the name of any user being created using trusted headers. This has no effect if the user already exists.
 If `WEBUI_AUTH_TRUSTED_NAME_HEADER` is not set, the email address is used as user name.
 
+The account created on a person's first request is given an identifier derived from their email address rather than a random one, so several requests arriving together for someone who has never signed in before all resolve to the same account. Previously each of those requests could create its own, leaving duplicate users for the same person, which is a realistic way for a first visit to begin when a page loads several resources at once.
+
 #### Group Management
 
 You can use the `WEBUI_AUTH_TRUSTED_GROUPS_HEADER` environment variable to synchronize user groups in Open WebUI. Set this variable to the name of the HTTP header that will contain a comma-separated list of group names for the authenticated user.
@@ -311,10 +353,11 @@ You can use the `WEBUI_AUTH_TRUSTED_ROLE_HEADER` environment variable to control
 - When the header is present and valid, the user's role is updated on every sign-in to match the header value.
 - If the header contains an invalid value, the role is not changed and a warning is logged.
 - If the header is not present or empty, the user's existing role is left unchanged.
+- When the header does change the role, the account's live WebSocket connections are ended so the previous role cannot linger in an open tab. Those browsers reconnect and re-authenticate by themselves. See [When a Role Change Takes Effect](/features/authentication-access/rbac/roles#when-a-role-change-takes-effect).
 
 :::warning
 
-When configured, this header allows clients to set admin-level access via an HTTP header. You **must** ensure that only your trusted reverse proxy or identity provider can set this header. Allowing untrusted clients to reach Open WebUI directly would let anyone escalate to admin. This is the same security model as the other trusted headers — see the warning at the top of this section.
+When configured, this header allows clients to set admin-level access via an HTTP header. You **must** ensure that only your trusted reverse proxy or identity provider can set this header. Allowing untrusted clients to reach Open WebUI directly would let anyone escalate to admin. This is the same security model as the other trusted headers; see the warning at the top of this section.
 
 :::
 

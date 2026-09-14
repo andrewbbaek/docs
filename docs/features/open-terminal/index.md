@@ -3,59 +3,138 @@ sidebar_position: 3
 title: "Open Terminal"
 ---
 
-# ⚡ Open Terminal
+import ThemedImage from '@theme/ThemedImage';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 
-**Give your AI a real computer to work on.**
+# Open Terminal
 
-Open Terminal connects a real computing environment to Open WebUI. The AI can write code, execute it, read the output, fix errors, and iterate, all without leaving the chat. It handles files, installs packages, runs servers, and returns results directly to you. Run it in a Docker container for isolation, or bare metal for direct access to your machine.
+<ThemedImage
+  alt="Open Terminal: the Open WebUI core driving a real terminal session in a loop, running commands and reading the output"
+  sources={{
+    light: useBaseUrl('/images/banners/terminal-light.svg'),
+    dark: useBaseUrl('/images/banners/terminal-dark.svg'),
+  }}
+  style={{ width: '100%', margin: '0.25rem 0 1.75rem' }}
+/>
 
-This is where ideas become working software. Ask a question, get a running script. Describe a website, see it rendered live. Point it at a dataset, get a finished report.
+**Turn Open WebUI into a full agent harness.**
+
+[View on GitHub →](https://github.com/open-webui/open-terminal)
+
+An agent harness is the system around a model that lets it do real work: instructions, context, tools, state, permissions, feedback loops, observability, and an execution environment. Open WebUI already gives you the control side of that harness: models, chats, knowledge, prompts, tools, MCP connections, memory, users, permissions, automations, and shared workflow controls. Open Terminal completes it with the part most chat products are still missing: a real computer substrate where actions run and evidence comes back.
+
+That means the agent can do real work. Not just answer questions about a task, and not just emit code you run somewhere else. It can plan, create files, run code, inspect output, install dependencies, start servers, render previews, recover from errors, and continue until there is an artifact you can use: a script, report, patch, chart, website, migration, or organized folder.
+
+Despite the name, Open Terminal is not just a terminal panel. It is the computer-like workspace that makes Open WebUI's agent loop capable of acting on files, code, packages, servers, documents, and generated artifacts. Run it in Docker for isolation, or bare metal when the agent should work directly on the host.
 
 ![Open WebUI with Open Terminal, file browser sidebar and chat](/images/open-terminal-file-browser.png)
 
+## The Right Mental Model
+
+Modern agentic workflows are not one prompt in, one answer out. They are stateful loops:
+
+1. Understand the goal.
+2. Inspect the workspace.
+3. Choose an action.
+4. Run the action.
+5. Observe the result.
+6. Repair, continue, or verify.
+
+Open WebUI coordinates that loop. Open Terminal gives the loop a real place to happen: files to inspect, code to run, outputs to verify, and artifacts to hand back. Together, they form the full harness: model, context, tools, state, action, observation, and verification.
+
+:::tip Looking for "your computer in a browser" instead?
+Open Terminal is the computer substrate an **AI agent** drives from chat. If you want to operate your own machine from any browser, with files, editor, terminal, git, and AI as an optional helper, see [**Open WebUI Computer**](/ecosystem/computer), a separate Open WebUI project. [Choose the right execution environment](/ecosystem/computer/choose).
+:::
+
 ---
 
-## Capabilities
+## How the Harness Fits Together
+
+| | Open WebUI | Open Terminal |
+| :--- | :--- | :--- |
+| Harness role | Control layer: prompts, context, tools, state, permissions, users, and workflow UI | Action layer: a computer-like workspace the model can act inside |
+| Context | Conversations, uploaded files, knowledge bases, memories, notes, channels | Files, folders, terminal output, logs, previews, documents, and generated artifacts |
+| Action | Builtin tools, MCP/OpenAPI tools, automations, sub-agents | Create files, run commands, install packages, execute code, start servers, use Git, process documents |
+| Feedback loop | Tool calls, conversation state, model routing, and workflow progression | Observe the workspace, change it, run it, inspect the result, fix, retry, verify |
+| Boundary | Open WebUI permissions and configuration | Docker sandbox or direct host access |
+
+Open WebUI plus Open Terminal is the full agent harness: the control layer, the action layer, and the feedback loop between them.
+
+---
+
+## The Terms People Use
+
+Different teams describe this stack with different language. Open Terminal fits the vocabulary people already use for agentic systems:
+
+| Term people use | What it means here |
+| :--- | :--- |
+| **Agentic AI** | A model that can take multi-step actions, observe results, and keep going |
+| **Agentic workflow** | A goal-driven process where the agent plans, acts, observes results, and adapts |
+| **AI agent** | The model plus instructions, tools, memory/context, and an execution loop |
+| **Agent harness** | The whole system around the model that turns reasoning into action: instructions, context, tools, state, permissions, feedback loops, evaluation, observability, and execution environments |
+| **Agent runtime** | The place where agent actions actually run: files, code, commands, servers, documents, and processes |
+| **Action runtime** | A runtime focused on executing real-world actions reliably, with authorization and auditability |
+| **Agentic infrastructure** | The compute, state, orchestration, tools, security, and observability needed to run agents in production |
+| **Computer substrate** | The filesystem, shell, packages, processes, previews, and artifacts the harness gives the agent so it can do work |
+| **Stateful session** | A task or workspace that persists across many model/tool turns instead of one stateless request |
+| **Tool calling / function calling** | The model choosing a structured tool action instead of only writing text |
+| **Tool result / context return** | The output from an action being returned to the model so it can decide the next step |
+| **Action tools** | Tools that modify an external environment, such as editing files, posting messages, or changing records |
+| **Computer use** | An agent operating a computer-like environment through files, commands, UI, or browser actions |
+| **Code interpreter** | A narrower execution surface for running code; Open Terminal is broader because it includes the filesystem, shell, packages, processes, and previews |
+| **MCP / tool servers** | Standard or API-backed ways to expose capabilities to the model |
+| **Orchestration** | The loop of choosing tools, sequencing steps, handling failures, and verifying results |
+| **Human-in-the-loop** | A human approval or review point inside an otherwise agent-driven workflow |
+| **Guardrails / governance** | Policy, permission, and safety controls around what the agent can see and do |
+| **Observability / auditability** | Logs, traces, and records that show what the agent did and why |
+| **Sandbox** | The isolation boundary around the agent's filesystem, processes, and network access |
+
+The practical point is simple: models got good enough to use tools, but a harness is only as useful as the environment it can act on. Open Terminal gives Open WebUI the computer-shaped action layer that makes the harness complete.
+
+---
+
+## Agent Workloads
 
 ### Data analysis and reporting
 
-Upload spreadsheets, CSVs, or databases. The AI reads the data, runs analysis scripts, and generates charts or reports.
+Upload spreadsheets, CSVs, databases, or exported logs. The agent can inspect the files, write analysis code, install libraries, generate charts, and return a finished report.
 
 ![AI analyzing data from a spreadsheet](/images/open-terminal-ai-csv-analysis.png)
 
 ### Document search and extraction
 
-Point the AI at a folder of PDFs, Word docs, or emails. It reads all of them and returns structured results: summaries, extracted fields, or cross-references.
+Point the agent at a folder of PDFs, Word docs, spreadsheets, or emails. It can search, extract, convert, summarize, cross-reference, and produce structured output.
 
-{/* TODO: Screenshot — A chat where the user asks about the Johnson contract. The AI lists the files it found in a folder (contract_v2.docx, notes.pdf, invoice.xlsx) and provides a consolidated summary of relevant information from each. */}
+![The AI reading a folder of contract files and summarising the renewal](/images/open-terminal-document-search.png)
 
 ### Web development with live preview
 
-The AI builds HTML/CSS/JS projects, starts a preview server, and renders the result inside Open WebUI. Iterate by describing changes in chat.
+Describe a site or app. The agent can create the files, install dependencies, start a dev server, and render the result inside Open WebUI. Iterate by describing changes in chat.
 
-{/* TODO: Screenshot — A chat on the left side of the screen. On the right, a live website preview panel shows a clean event landing page with a banner, date, and registration button. */}
+![A chat beside a live preview of the event site the AI is serving](/images/open-terminal-live-site-preview.png)
 
 ### Software development
 
-Clone repos, run test suites, debug failures, refactor code, and work with Git, all through natural language.
+Clone repos, inspect architecture, run test suites, debug failures, refactor code, and work with Git. The key capability is not just writing code; it is running and verifying it.
 
 ### File and system automation
 
-Bulk rename, sort, deduplicate, convert, compress, and organize files. Manage disk space, schedule backups, process logs.
+Bulk rename, sort, deduplicate, convert, compress, and organize files. Manage disk usage, process logs, prepare exports, and automate repeatable operations.
 
-{/* TODO: Screenshot — A chat where the user asks "rename all the photos to include the date". The AI responds confirming "Renamed 43 files" with a before/after example: IMG_4521.jpg → 2025-03-15_IMG_4521.jpg. */}
+![The AI renaming 43 photos to prefix each filename with its date](/images/open-terminal-bulk-rename.png)
 
 ---
 
-## Key Features
+## What Agents Can Do With This Substrate
 
 | | |
 | :--- | :--- |
-| 🖥️ **Code execution** | Runs real commands and returns output |
-| 📁 **File browser** | Browse, upload, download, and edit files in the sidebar |
-| 📄 **Document reading** | PDF, Word, Excel, PowerPoint, RTF, EPUB, email |
-| 🌐 **Website preview** | Live preview of web projects inside Open WebUI |
-| 🔒 **Isolation optional** | Run in a Docker container for sandboxing, or bare metal for full access |
+| 🖥️ **Use a real shell** | Run commands, scripts, CLIs, tests, build tools, and package managers |
+| 📁 **Own a workspace** | Browse, upload, download, edit, create, rename, convert, and organize files |
+| 📄 **Process documents and data** | Handle PDF, Word, Excel, PowerPoint, RTF, EPUB, email, text, code, and data files |
+| 🌐 **Run and preview software** | Start local servers and show live previews inside Open WebUI |
+| 🔁 **Iterate from feedback** | Read output, inspect artifacts, fix errors, retry, and verify the result |
+| 🔒 **Choose the boundary** | Run isolated in Docker, or bare metal when direct host access is intentional |
 
 ---
 
@@ -64,23 +143,29 @@ Bulk rename, sort, deduplicate, convert, compress, and organize files. Manage di
 **[Installation →](./setup/installation)** · **[Connect to Open WebUI →](./setup/connecting)**
 
 :::info Model requirements
-Open Terminal requires models with **native function calling** support. Frontier models (GPT-5.4, Claude Sonnet 4.6, Gemini 3.1 Pro) handle complex multi-step tasks well. Smaller models may work for simple commands but can struggle with longer workflows. [Enable native function calling](./setup/connecting#8-enable-native-function-calling) on your model.
+Open Terminal needs a model that performs tool calling at agentic quality, not just one that technically supports tools. Working inside a computer substrate is a multi-step loop: choose an action, observe files or output, decide what changed, recover from errors, and repeat across many turns. Small models often fail at that loop even when they can emit a valid tool call. Use a capable frontier model for complex software, data, and automation work. Native tool calling is the default as of v0.10.0; [check the model's tool-calling mode](./setup/connecting#8-enable-native-function-calling) if tools are not firing.
 :::
 
 ---
 
 ## Use Cases
 
-- **[Code execution](./use-cases/code-execution)** — write, run, and debug scripts
-- **[Software development](./use-cases/software-development)** — repos, tests, debugging, refactoring, Git
-- **[Document & data analysis](./use-cases/file-analysis)** — spreadsheets, PDFs, Word docs, emails
-- **[Web development](./use-cases/web-development)** — build and preview websites
-- **[System automation](./use-cases/system-automation)** — file management, backups, batch operations
-- **[Advanced workflows](./use-cases/advanced-workflows)** — skills for data reports, research, code review, and more
-- **[File browser](./file-browser)** — uploading, previewing, editing files
+- **[Code execution](./use-cases/code-execution)**: write, run, and debug scripts
+- **[Software development](./use-cases/software-development)**: repos, tests, debugging, refactoring, Git
+- **[Document & data analysis](./use-cases/file-analysis)**: spreadsheets, PDFs, Word docs, emails
+- **[Web development](./use-cases/web-development)**: build and preview websites
+- **[System automation](./use-cases/system-automation)**: file management, backups, batch operations
+- **[Advanced workflows](./use-cases/advanced-workflows)**: skills for data reports, research, code review, and more
+- **[File browser](./file-browser)**: uploading, previewing, editing files
 
 ---
 
 ## Enterprise Multi-User
 
-Need isolated, per-user terminal containers for your team? **[Terminals](./terminals/)** provisions a dedicated Open Terminal instance for every user with automatic lifecycle management, resource controls, and policy-based environments.
+Need isolated, per-user agent workspaces for your team? **[Terminals](./terminals/)** is the orchestrator for Open Terminal. It provisions a dedicated computer substrate for every user and policy, with automatic lifecycle management, resource limits, custom images, persistent storage, scheduled resets, and policy-controlled environments.
+
+---
+
+## Your Whole Machine
+
+Open Terminal adds a computer substrate to Open WebUI for the agent to use. [**Open WebUI Computer**](/ecosystem/computer) is the computer itself for you to use: files, terminal, git, editor, and AI in a browser tab, accessible from any device.

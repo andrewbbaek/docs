@@ -3,7 +3,7 @@ sidebar_position: 7
 title: "Image Processing"
 ---
 
-# 📸 Batch Process Images
+# Batch Process Images
 
 Resize, watermark, convert, or generate thumbnails for a folder of images.
 
@@ -18,7 +18,7 @@ Resize, watermark, convert, or generate thumbnails for a folder of images.
 4. Generates a contact sheet (grid of all thumbnails)
 5. Reports file count and size savings
 
-{/* TODO: Screenshot — File browser showing three output folders: processed/ (watermarked), thumbnails/ (200x200), plus a contact_sheet.png previewed as a grid of product images. */}
+![The processed images and thumbnails in the file browser](/images/open-terminal-image-processing-outputs.png)
 
 ## Skill content
 

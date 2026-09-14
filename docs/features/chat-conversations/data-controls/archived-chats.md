@@ -1,6 +1,6 @@
 ---
 sidebar_position: 3
-title: "📦 Archived Chats"
+title: "Archived Chats"
 ---
 
 Open WebUI allows you to archive conversations to declutter your sidebar while preserving them for future reference. The **Archived Chats** dashboard lets you manage all your archived conversations in one place.
@@ -9,12 +9,13 @@ Open WebUI allows you to archive conversations to declutter your sidebar while p
 
 1. Click on your **profile name** or avatar in the bottom-left corner of the sidebar.
 2. Select **Settings** from the menu.
-3. Navigate to the **Data Controls** tab.
-4. Locate the **Archived Chats** row and click the **Manage** button.
+3. Open the **Archived Chats** tab, under **Data**.
+
+Archived chats used to sit behind a **Manage** button on the **Data Controls** tab. They now have a tab of their own in the same **Data** group.
 
 ## Dashboard Features
 
-The **Archived Chats** modal provides tools to manage your archived conversations:
+The **Archived Chats** view provides tools to manage your archived conversations:
 
 - **Search**: Quickly find archived chats by title using the search bar.
 - **Restore**: Bring an archived chat back to your main sidebar.
@@ -30,10 +31,16 @@ From the Data Controls tab, you can also perform bulk operations:
     This action cannot be undone. All chat history will be permanently deleted.
     :::
 
+:::info Deleting needs the Chat Delete permission
+
+**Delete** on an archived chat and **Delete All Chats** are drawn only for people who hold **Allow Chat Delete**. Without it neither appears, so there is no button that refuses when you press it, and archiving and **Unarchive All** work as before. Admins are always exempt. See [Permissions](/features/authentication-access/rbac/permissions#3-chat-permissions).
+
+:::
+
 ## FAQ
 
 **Q: Can I search within archived chats?**  
-**A:** The archive dashboard searches by chat title. To search within message content, you would need to restore the chat first.
+**A:** Yes. The archive dashboard itself searches by chat title, but the sidebar search (`Cmd+K` / `Ctrl+K`) reads the messages of archived chats too: add the `archived:true` filter, for example `archived:true quarterly report`. You do not need to restore a chat to search inside it. See [History & Search](/features/chat-conversations/chat-features/history-search#filter-prefixes).
 
 **Q: Is there a limit to how many chats I can archive?**  
 **A:** There is no hard limit. The scalability depends on your database configuration.
